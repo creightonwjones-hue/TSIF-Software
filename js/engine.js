@@ -77,6 +77,8 @@ export function createGame(scenarioId = 1, nickname = 'Player', avatar = '🦊')
     stockPaths: buildStockPaths(scenario),
     bondPaths: buildBondPaths(scenario),
     biz: { owned: {}, shifts: {} },   // lemonade stand: upgrades bought, money earned per year
+    events: {},                       // life events already applied, by year
+    mine: {},                         // mine shift pay, by year
     history: [SETTINGS.startingCash], // net worth at start, then at the end of each year
     log: [],       // every action: { year, type, id, qty, amount }
     yearEnds: [],  // facts about each year, used for awards
@@ -237,6 +239,92 @@ export function runShift(state, served) {
   return { ok: true, earned, served: n };
 }
 
+// ---------- Life events: surprise money in, or bills you must pay ----------
+// Bills are paid from cash, then savings, then by selling stocks, then bonds,
+// and if there's still not enough, the bank lends the rest (an emergency loan).
+export function applyEvent(state) {
+  if (state.finished) return null;
+  if (!state.events) state.events = {};
+  if (state.events[state.year]) return state.events[state.year].none ? null : state.events[state.year];
+  const ev = getScenario(state.scenarioId).years[state.year - 1]?.event;
+  if (!ev) { state.events[state.year] = { none: true }; return null; }
+  const r = { year: state.year, text: ev.text, amount: ev.amount, fromCash: 0, fromSavings: 0, sold: [], loan: 0 };
+  if (ev.amount >= 0) {
+    state.cash = round2(state.cash + ev.amount);
+    record(state, 'gift', 'event', 0, ev.amount);
+  } else {
+    let owed = -ev.amount;
+    const take = (from, field) => { const t = round2(Math.min(owed, from)); owed = round2(owed - t); return t; };
+    r.fromCash = take(state.cash); state.cash = round2(state.cash - r.fromCash);
+    r.fromSavings = take(state.savings); state.savings = round2(state.savings - r.fromSavings);
+    // sell stocks, biggest holding first, whole shares
+    const holdings = STOCKS.filter((st) => state.shares[st.id] > 0)
+      .sort((a, b) => state.shares[b.id] * stockPrice(state, b.id) - state.shares[a.id] * stockPrice(state, a.id));
+    for (const st of holdings) {
+      if (owed <= 0) break;
+      const price = stockPrice(state, st.id);
+      const qty = Math.min(state.shares[st.id], Math.ceil(owed / price));
+      const got = round2(qty * price);
+      state.shares[st.id] -= qty;
+      state.cash = round2(state.cash + got);
+      r.sold.push({ id: st.id, kind: 'stock', qty, amount: got });
+      record(state, 'forcedSell', st.id, qty, got);
+      const pay = round2(Math.min(owed, state.cash)); owed = round2(owed - pay); state.cash = round2(state.cash - pay);
+    }
+    for (const b of BONDS) {
+      if (owed <= 0) break;
+      if (state.bonds[b.id] <= 0) continue;
+      const price = bondPrice(state, b.id);
+      const qty = Math.min(state.bonds[b.id], Math.ceil(owed / price));
+      const got = round2(qty * price);
+      state.bonds[b.id] -= qty;
+      state.cash = round2(state.cash + got);
+      r.sold.push({ id: b.id, kind: 'bond', qty, amount: got });
+      record(state, 'forcedSell', b.id, qty, got);
+      const pay = round2(Math.min(owed, state.cash)); owed = round2(owed - pay); state.cash = round2(state.cash - pay);
+    }
+    if (owed > 0) { // emergency loan, allowed past the normal limit
+      r.loan = owed;
+      state.debt = round2(state.debt + owed);
+      record(state, 'emergencyLoan', 'loan', 0, owed);
+    }
+    record(state, 'bill', 'event', 0, -ev.amount);
+  }
+  state.events[state.year] = r;
+  return r;
+}
+
+// ---------- The Mine: a deterministic grid of rocks, one shift a year ----------
+const MINE = SETTINGS.mine;
+export function mineLayout(state) {
+  const rand = mulberry32(getScenario(state.scenarioId).seed * 31 + state.year * 7919);
+  const cells = [];
+  for (const [kind, o] of Object.entries(MINE.ore)) for (let i = 0; i < o.count; i++) cells.push(kind);
+  while (cells.length < MINE.cols * MINE.rows) cells.push('dirt');
+  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+  return cells;
+}
+const oreValue = (kind) => MINE.ore[kind]?.value || 0;
+export function mineBest(state) {
+  return mineLayout(state).map(oreValue).sort((a, b) => b - a).slice(0, MINE.swings).reduce((a, b) => a + b, 0);
+}
+export const mineDone = (state) => (state.mine || {})[state.year] != null;
+export function runMine(state, picks) {
+  if (playing(state)) return playing(state);
+  if (!state.mine) state.mine = {};
+  if (mineDone(state)) return fail('You already worked in the mine this year.');
+  const n = MINE.cols * MINE.rows;
+  if (!Array.isArray(picks) || picks.length > MINE.swings) return fail(`You only get ${MINE.swings} swings.`);
+  if (new Set(picks).size !== picks.length || picks.some((p) => !Number.isInteger(p) || p < 0 || p >= n)) return fail('Pick different rocks.');
+  const lay = mineLayout(state);
+  const found = picks.map((p) => lay[p]);
+  const earned = round2(found.reduce((t, k) => t + oreValue(k), 0));
+  state.cash = round2(state.cash + earned);
+  state.mine[state.year] = earned;
+  record(state, 'mine', 'mine', picks.length, earned);
+  return { ok: true, earned, found };
+}
+
 // How many different things you own. The Basket counts as 4 because it holds every company.
 export function diversityCount(state) {
   let n = 0;
@@ -276,6 +364,8 @@ export function advanceYear(state) {
   const helperPay = bizYearly(state);
   state.cash = round2(state.cash + helperPay);
   const shiftPay = state.biz.shifts[y] || 0;
+  const minePay = (state.mine || {})[y] || 0;
+  const event = (state.events || {})[y]?.none ? null : (state.events || {})[y] || null;
 
   const movers = STOCKS.map((s) => {
     const from = stockPrice(state, s.id, y - 1), to = stockPrice(state, s.id, y);
@@ -290,7 +380,7 @@ export function advanceYear(state) {
 
   return {
     year: y, outcome: ev.outcome || '', lesson: ev.lesson || null,
-    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay,
+    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay, minePay, event,
     movers, netBefore: before, netAfter: after, finished: state.finished,
   };
 }
@@ -302,6 +392,7 @@ export const AWARD_INFO = {
   rumor:       { emoji: '🕵️', name: 'Hype Detector',   desc: 'Didn\'t fall for the hot tip.' },
   debtFree:    { emoji: '🔓', name: 'Debt Free',       desc: 'Finished owing the bank nothing.' },
   founder:     { emoji: '🍋', name: 'Business Owner',  desc: 'Ran your lemonade stand every year.' },
+  rainy:       { emoji: '☂️', name: 'Rainy Day Ready', desc: 'Paid every surprise bill without selling or borrowing.' },
 };
 
 export function computeAwards(state) {
@@ -318,6 +409,7 @@ export function computeAwards(state) {
     : false;
   earned.debtFree = state.finished && state.debt === 0;
   const shifts = ensureBiz(state).shifts;
+  earned.rainy = state.finished && !state.log.some((e) => e.type === 'forcedSell' || e.type === 'emergencyLoan');
   earned.founder = Array.from({ length: YEARS }, (_, i) => shifts[i + 1] != null).every(Boolean);
   return Object.entries(AWARD_INFO).map(([id, info]) => ({ id, ...info, earned: !!earned[id] }));
 }

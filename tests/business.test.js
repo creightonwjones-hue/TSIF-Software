@@ -86,8 +86,9 @@ test('balance: the business is useful but does not make investing pointless', ()
 });
 
 test('buying the helper late does not pay off (the payback lesson)', () => {
+  const base = E.netWorth(play(1, () => {}));
   const early = play(1, (g) => { if (g.year === 1) E.buyUpgrade(g, 'helper'); });
   const late = play(1, (g) => { if (g.year === 9) E.buyUpgrade(g, 'helper'); });
-  assert.ok(E.netWorth(early) > 1000, 'early helper pays back');
-  assert.ok(E.netWorth(late) < 1000, 'late helper does not');
+  assert.ok(E.netWorth(early) > base, 'early helper pays back');
+  assert.ok(E.netWorth(late) < base, 'late helper does not');
 });

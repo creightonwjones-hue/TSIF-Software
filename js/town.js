@@ -15,7 +15,7 @@ export const BUILDINGS = [
   { id: 'exchange', label: 'STOCK EXCHANGE', x: 19, y: 2, w: 10, h: 5, door: 23, enter: true, civic: true, labelY: 71 },
   { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, enter: true, kiosk: true, labelY: 203 },
   { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, enter: true, stand: true },
-  { id: 'factory', label: '', x: 24, y: 11, w: 5, h: 4, door: 26, wall: 'brick', roof: 'gray', chimney: true },
+  { id: 'mine', label: 'MINE', x: 24, y: 11, w: 5, h: 4, door: 26, enter: true, mine: true },
 ];
 const PATHS = [[0, 8, 32, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
 const POND = [10, 11, 3, 3];
@@ -124,6 +124,7 @@ function drawStatic(season) {
     if (b.stand) continue;
     if (b.civic) drawCivic(c, b, winter);
     else if (b.kiosk) drawKiosk(c, b, winter);
+    else if (b.mine) drawMine(c, b, winter);
     else drawBuilding(c, b, winter);
   }
   drawBull(c, winter);
@@ -344,6 +345,34 @@ function drawKiosk(c, b, winter) {
   const sx = x + w - 14;
   R(c, sx, y + 40, 11, 18, '#8A6E55'); R(c, sx + 1, y + 41, 9, 13, '#FFFFFF');
   R(c, sx + 2, y + 43, 7, 2, '#C2483A'); R(c, sx + 2, y + 47, 7, 1, '#8D8A84'); R(c, sx + 2, y + 50, 5, 1, '#8D8A84');
+}
+
+// ---------- the mine: a rocky hill with a timber-framed entrance, rails and an ore cart ----------
+function drawMine(c, b, winter) {
+  const x = b.x * T, y = b.y * T, w = b.w * T, h = b.h * T, cx = b.door * T + 8;
+  R(c, x + 4, y + h - 6, w, 8, 'rgba(20,30,20,.22)');
+  // the hill: stacked boulders
+  const rocks = [[0, 22, 80, 42, '#8D8A84'], [6, 12, 66, 30, '#9E9A90'], [16, 4, 46, 22, '#A9A6A0'], [2, 30, 22, 20, '#7A766E'], [56, 26, 24, 22, '#7A766E'], [24, 0, 26, 12, '#B9B4AA']];
+  for (const [rx, ry, rw, rh, col] of rocks) { R(c, x + rx + 2, y + ry, rw - 4, rh, col); R(c, x + rx, y + ry + 2, rw, rh - 4, col); }
+  for (let i = 0; i < 26; i++) { const px = x + 4 + ((i * 29) % (w - 8)), py = y + 4 + ((i * 17) % (h - 14)); R(c, px, py, 3, 1, 'rgba(255,255,255,.18)'); R(c, px + 1, py + 2, 2, 1, 'rgba(0,0,0,.12)'); }
+  if (winter) { R(c, x + 18, y + 2, 42, 5, '#F4F7FA'); R(c, x + 8, y + 12, 18, 3, '#FFFFFF'); R(c, x + 54, y + 14, 16, 3, '#FFFFFF'); }
+  else { for (const [gx, gy] of [[20, 3], [40, 1], [10, 14], [62, 16]]) { R(c, x + gx, y + gy, 1, 3, '#4E8A3C'); R(c, x + gx + 2, y + gy + 1, 1, 2, '#4E8A3C'); } }
+  // entrance with timber frame
+  R(c, cx - 11, y + 26, 22, h - 26, '#1E1A16'); R(c, cx - 9, y + 28, 18, h - 28, '#2B2520');
+  R(c, cx - 13, y + 24, 4, h - 24, '#7A5A40'); R(c, cx + 9, y + 24, 4, h - 24, '#7A5A40');
+  R(c, cx - 15, y + 22, 30, 5, '#8C6A4A'); R(c, cx - 15, y + 22, 30, 1, '#A88660');
+  // hanging lantern
+  R(c, cx - 1, y + 27, 1, 3, OUTLINE); R(c, cx - 3, y + 30, 5, 5, OUTLINE); R(c, cx - 2, y + 31, 3, 3, '#F8E08A');
+  // rail tracks coming out of the mine
+  for (let ty = y + 34; ty < y + h + 14; ty += 4) R(c, cx - 7, ty, 14, 2, '#6B4A30');
+  R(c, cx - 5, y + 34, 1, h - 20, '#B9BEC6'); R(c, cx + 4, y + 34, 1, h - 20, '#B9BEC6');
+  // ore cart
+  const kx = x + 6, ky = y + h - 20;
+  R(c, kx, ky, 20, 10, OUTLINE); R(c, kx + 1, ky + 1, 18, 8, '#6E7480'); R(c, kx + 1, ky + 1, 18, 2, '#848A96');
+  for (const [ox, col] of [[3, '#2E2A26'], [7, '#F2D45C'], [11, '#C9CED6'], [15, '#2E2A26']]) R(c, kx + ox, ky - 2, 3, 3, col);
+  R(c, kx + 3, ky + 9, 4, 4, OUTLINE); R(c, kx + 13, ky + 9, 4, 4, OUTLINE);
+  // pickaxe leaning on the rocks
+  R(c, x + w - 16, y + h - 26, 2, 16, '#8C6A4A'); R(c, x + w - 21, y + h - 27, 12, 2, '#9AA0A8'); R(c, x + w - 21, y + h - 26, 2, 2, '#9AA0A8');
 }
 
 // ---------- the bronze bull statue in front of the Stock Exchange ----------

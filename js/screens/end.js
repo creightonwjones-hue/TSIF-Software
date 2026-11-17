@@ -25,10 +25,17 @@ function recap(s, awards) {
       - s.log.filter((e) => e.type === 'borrow').reduce((t, e) => t + e.amount, 0));
     lines.push(`Your loan cost you ${money(Math.max(0, interest))} in interest.`);
   }
+  const forced = s.log.filter((e) => e.type === 'forcedSell' || e.type === 'emergencyLoan').length;
+  const bills = s.log.filter((e) => e.type === 'bill').reduce((t, e) => t + e.amount, 0);
+  if (bills > 0) lines.push(forced
+    ? `Surprise bills (${money(bills)}) forced you to sell or borrow ${forced} time${forced === 1 ? '' : 's'}. An emergency fund in savings would have covered them.`
+    : `You paid ${money(bills)} in surprise bills without selling or borrowing — that's an emergency fund at work.`);
+  const mined = Object.values(s.mine || {}).reduce((a, b) => a + b, 0);
+  if (mined > 0) lines.push(`You earned ${money(mined)} working at the mine.`);
   const bizTotal = Object.values(E.ensureBiz(s).shifts).reduce((a, b) => a + b, 0);
   const ups = Object.keys(s.biz.owned).length;
   if (bizTotal > 0) lines.push(`Your lemonade stand earned ${money(bizTotal)} from shifts${ups ? `, with ${ups} upgrade${ups === 1 ? '' : 's'}` : ''}.`);
-  return lines.slice(0, 5);
+  return lines.slice(0, 6);
 }
 
 export function endScreen(app) {

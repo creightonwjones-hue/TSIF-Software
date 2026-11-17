@@ -17,7 +17,7 @@ export function yearNewsPopup(app) {
         h('p', { class: 'headline' }, ev.headline)),
       ev.tip ? h('p', { class: 'tip-teaser' }, 'Someone left a hot tip at the News Stand…') : null,
       h('p', { class: 'hint' }, 'Visit the Bank, the Stock Exchange and your Lemonade Stand. When you\'re done, walk Home to end the year.'),
-      h('button', { class: 'btn primary', type: 'button', onclick: () => { sound('click'); app.close(); } }, 'Start the year ▶')),
+      h('button', { class: 'btn primary', type: 'button', onclick: () => { sound('click'); app.close(); app.showEvent(); } }, 'Start the year ▶')),
   });
 }
 

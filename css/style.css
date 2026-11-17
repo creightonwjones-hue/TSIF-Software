@@ -306,3 +306,41 @@ canvas.stand-scene { border: 3px solid var(--slate); height: auto; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Life event card ---------- */
+.event-card { display: flex; flex-direction: column; gap: 12px; }
+.event-text { font-size: 28px; line-height: 1.15; }
+.event-amount { font-size: 56px; line-height: 1; }
+.lesson-card.warn { background: #FBE6E2; }
+.lesson-card.warn b { color: var(--down); }
+.event-card > .btn { align-self: flex-start; }
+
+/* ---------- Mine ---------- */
+.two-col.mine { grid-template-columns: 1.4fr 1fr; }
+.mine-cave { background: #2B2520; padding: 14px; box-shadow: inset 0 0 0 3px #3A332C, inset 0 0 40px rgba(0,0,0,.6), 0 6px 0 rgba(20,28,40,.35); }
+.mine-board { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 6px; }
+.rock { position: relative; aspect-ratio: 1; padding: 0; border: 0; background: #3A332C; cursor: pointer; }
+.rock canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.rock:not(:disabled):hover { background: #4A4038; outline: 3px solid var(--gold); outline-offset: -3px; }
+.rock:disabled { cursor: default; }
+.rock.hit { animation: hit .16s steps(2); }
+@keyframes hit { 50% { transform: translate(-3px, 2px) rotate(-3deg); } }
+.rock.hint-gold::after, .rock.hint-silver::after {
+  content: ''; position: absolute; width: 8%; height: 8%; top: 30%; left: 60%;
+  background: #FFF4B0; box-shadow: 0 0 6px 2px rgba(255,236,150,.8); animation: twinkle 1.4s ease-in-out infinite; pointer-events: none;
+}
+.rock.hint-silver::after { background: #FFFFFF; box-shadow: 0 0 4px 1px rgba(255,255,255,.6); animation-duration: 2.2s; top: 55%; left: 30%; }
+@keyframes twinkle { 0%, 60%, 100% { opacity: 0; transform: scale(.4); } 75% { opacity: 1; transform: scale(1); } }
+.rock-tag { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%); background: var(--cream); border: 2px solid var(--slate); padding: 0 5px; font-size: 16px; color: var(--muted); }
+.rock-tag.good { color: var(--up); }
+.mine-side { display: flex; flex-direction: column; gap: 12px; }
+.pick-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.pick { width: 18px; height: 18px; display: inline-block; background:
+  linear-gradient(#9AA0A8 0 0) 2px 2px / 14px 3px no-repeat,
+  linear-gradient(#8C6A4A 0 0) 8px 4px / 3px 13px no-repeat; }
+.pick.used { opacity: .2; }
+.ore-legend { display: flex; flex-direction: column; gap: 4px; }
+.ore-legend > div { display: flex; align-items: center; gap: 8px; }
+.ore-legend b { margin-left: auto; }
+.ore-dot { width: 14px; height: 14px; border: 2px solid var(--slate); display: inline-block; }
+@media (max-width: 1000px) { .two-col.mine { grid-template-columns: 1fr; } }
