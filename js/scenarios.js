@@ -12,6 +12,16 @@ export const SETTINGS = {
   savingsRate: 0.03,   // bank savings interest per year
   loanRate: 0.08,      // loan interest per year
   loanLimit: 500,      // most a player can owe at once (before interest)
+  // Lemonade Stand: one shift per year. Earnings depend on upgrades, not click speed.
+  business: {
+    customers: 10,     // customers per shift
+    price: 2,          // dollars per customer
+    upgrades: [
+      { id: 'recipe', name: 'Better recipe', cost: 60,  desc: 'Tastier lemonade. +$1 per customer.', price: 1 },
+      { id: 'stand',  name: 'Bigger stand',  cost: 100, desc: 'Room for more people. +5 customers each shift.', customers: 5 },
+      { id: 'helper', name: 'Hire a helper', cost: 200, desc: 'Sells for you all year. +$25 every year, no clicking.', yearly: 25 },
+    ],
+  },
 };
 
 // risk: 1 = safe, 2 = medium, 3 = bumpy, 4 = wild

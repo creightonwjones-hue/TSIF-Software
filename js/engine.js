@@ -76,6 +76,7 @@ export function createGame(scenarioId = 1, nickname = 'Player', avatar = '🦊')
     shares, bonds,
     stockPaths: buildStockPaths(scenario),
     bondPaths: buildBondPaths(scenario),
+    biz: { owned: {}, shifts: {} },   // lemonade stand: upgrades bought, money earned per year
     history: [SETTINGS.startingCash], // net worth at start, then at the end of each year
     log: [],       // every action: { year, type, id, qty, amount }
     yearEnds: [],  // facts about each year, used for awards
@@ -200,6 +201,42 @@ export function sellBond(state, id, qty) {
   return record(state, 'sellBond', id, qty, got);
 }
 
+// ---------- Lemonade Stand business ----------
+const BIZ = SETTINGS.business;
+const upgradeInfo = (id) => BIZ.upgrades.find((u) => u.id === id);
+export function ensureBiz(state) { // older saves don't have a business yet
+  if (!state.biz) state.biz = { owned: {}, shifts: {} };
+  return state.biz;
+}
+const owns = (state, id) => !!ensureBiz(state).owned[id];
+export const bizCustomers = (state) => BIZ.customers + BIZ.upgrades.reduce((t, u) => t + (owns(state, u.id) ? u.customers || 0 : 0), 0);
+export const bizPrice = (state) => BIZ.price + BIZ.upgrades.reduce((t, u) => t + (owns(state, u.id) ? u.price || 0 : 0), 0);
+export const bizYearly = (state) => BIZ.upgrades.reduce((t, u) => t + (owns(state, u.id) ? u.yearly || 0 : 0), 0);
+export const shiftDone = (state) => ensureBiz(state).shifts[state.year] != null;
+
+export function buyUpgrade(state, id) {
+  if (playing(state)) return playing(state);
+  const u = upgradeInfo(id);
+  if (!u) return fail('Unknown upgrade.');
+  if (owns(state, id)) return fail('You already have that upgrade.');
+  if (u.cost > state.cash) return fail('Not enough cash for that upgrade.');
+  state.cash = round2(state.cash - u.cost);
+  state.biz.owned[id] = state.year;
+  return record(state, 'upgrade', id, 1, u.cost);
+}
+
+// Finish this year's shift. `served` = customers the player served (capped at the stand's size).
+export function runShift(state, served) {
+  if (playing(state)) return playing(state);
+  if (shiftDone(state)) return fail('You already worked your shift this year.');
+  const n = Math.max(0, Math.min(bizCustomers(state), Math.floor(served) || 0));
+  const earned = round2(n * bizPrice(state));
+  state.cash = round2(state.cash + earned);
+  state.biz.shifts[state.year] = earned;
+  record(state, 'shift', 'lemonade', n, earned);
+  return { ok: true, earned, served: n };
+}
+
 // How many different things you own. The Basket counts as 4 because it holds every company.
 export function diversityCount(state) {
   let n = 0;
@@ -235,6 +272,10 @@ export function advanceYear(state) {
   }
   coupons = round2(coupons);
   state.cash = round2(state.cash + coupons);
+  ensureBiz(state);
+  const helperPay = bizYearly(state);
+  state.cash = round2(state.cash + helperPay);
+  const shiftPay = state.biz.shifts[y] || 0;
 
   const movers = STOCKS.map((s) => {
     const from = stockPrice(state, s.id, y - 1), to = stockPrice(state, s.id, y);
@@ -249,7 +290,7 @@ export function advanceYear(state) {
 
   return {
     year: y, outcome: ev.outcome || '', lesson: ev.lesson || null,
-    savingsInterest, loanInterest, coupons, justDefaulted,
+    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay,
     movers, netBefore: before, netAfter: after, finished: state.finished,
   };
 }
@@ -260,6 +301,7 @@ export const AWARD_INFO = {
   saver:       { emoji: '🛡️', name: 'Safety Net',      desc: 'Kept money in savings or bonds every year.' },
   rumor:       { emoji: '🕵️', name: 'Hype Detector',   desc: 'Didn\'t fall for the hot tip.' },
   debtFree:    { emoji: '🔓', name: 'Debt Free',       desc: 'Finished owing the bank nothing.' },
+  founder:     { emoji: '🍋', name: 'Business Owner',  desc: 'Ran your lemonade stand every year.' },
 };
 
 export function computeAwards(state) {
@@ -275,6 +317,8 @@ export function computeAwards(state) {
     ? !state.log.some((e) => e.type === 'buy' && e.id === sc.rumor.stock && e.year === sc.rumor.year)
     : false;
   earned.debtFree = state.finished && state.debt === 0;
+  const shifts = ensureBiz(state).shifts;
+  earned.founder = Array.from({ length: YEARS }, (_, i) => shifts[i + 1] != null).every(Boolean);
   return Object.entries(AWARD_INFO).map(([id, info]) => ({ id, ...info, earned: !!earned[id] }));
 }
 
