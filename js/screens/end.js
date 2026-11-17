@@ -1,6 +1,6 @@
 import * as E from '../engine.js';
 import { SETTINGS } from '../scenarios.js';
-import { h, money, sound, worthChart, countUp } from '../ui.js';
+import { h, money, sound, worthChart, countUp, fireworks } from '../ui.js';
 
 function recap(s, awards) {
   const sc = E.getScenario(s.scenarioId);
@@ -63,4 +63,5 @@ export function endScreen(app) {
       } }, 'Play again')),
   });
   countUp(document.getElementById('final-score'), worth, 1200);
+  setTimeout(() => fireworks(), 700);
 }

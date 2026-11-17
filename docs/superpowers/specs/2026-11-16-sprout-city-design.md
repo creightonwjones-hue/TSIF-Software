@@ -144,3 +144,12 @@ The neon look and the isometric city-builder mockup were both rejected; the user
 - New achievement: **Business Owner** — ran your shift every year.
 
 **Builder's calls:** exact business numbers (set in `js/scenarios.js` → `SETTINGS.business` and tuned by tests); Lemonade Stand placed on the south side of the street; 4-step tutorial: Bank → Exchange → Lemonade Stand → Home; tap-to-walk uses tile pathfinding so kids can tap any building.
+
+## Update 2026-11-18 (later): bring the town to life
+The user liked the main-street pixel design but found it bland and said the lemonade stand didn't look like one.
+- The Lemonade Stand is now an open-air stand (striped canopy, counter, pitcher, cups, lemons, chalkboard). Customers wait in line until you run your shift; upgrades show up on the stand.
+- Seasons cycle each year (a scenario year can force one with `season`), plus townsfolk, ducks, chimney smoke, butterflies, birds, petals, leaves and snow.
+- Reactive buildings: a price ticker on the Exchange roof, a "!" on the News Stand for hot tips, and sparkles on the Bank when you have savings.
+- Each building screen has an animated pixel scene (`js/scenes.js`); the lemonade shift serves customers in an animated scene.
+- Polish: the top bar's numbers roll, prices flash on a new year, the recap reveals step by step, fireworks on the final score, and optional chiptune music (off by default).
+- Respects `prefers-reduced-motion`.

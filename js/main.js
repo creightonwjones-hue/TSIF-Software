@@ -1,7 +1,7 @@
 // Sprout City: wires the town, the top bar, and the building screens together.
 import * as E from './engine.js';
 import { SETTINGS, STOCKS } from './scenarios.js';
-import { h, money, sound, toast, isMuted, setMuted } from './ui.js';
+import { h, money, sound, toast, isMuted, setMuted, countBetween, isMusicOn, setMusic } from './ui.js';
 import { createTown } from './town.js';
 import { showStart } from './screens/start.js';
 import { bankScreen } from './screens/bank.js';
@@ -28,6 +28,7 @@ export const playerColor = (s) => (/^#[0-9a-f]{6}$/i.test(s.avatar) ? s.avatar :
 export const app = {
   state: null,
   town: null,
+  color() { return playerColor(this.state); },
   tutorial: 0,
   seenLessons: new Set(),
   screenRefresh: null,
@@ -71,7 +72,10 @@ export const app = {
     this.renderHud();
     this.updateTown();
     const cash = document.getElementById('screen-cash');
-    if (cash) cash.textContent = `Cash ${money(this.state.cash)}`;
+    if (cash && cash.textContent !== `Cash ${money(this.state.cash)}`) {
+      cash.textContent = `Cash ${money(this.state.cash)}`;
+      cash.classList.remove('bump'); void cash.offsetWidth; cash.classList.add('bump');
+    }
     this.screenRefresh?.();
     this.save();
   },
@@ -118,13 +122,20 @@ export const app = {
       h('b', { class: 'hud-title' }, 'Sprout City'),
       h('span', { class: 'chip' }, `Year ${year} of ${SETTINGS.years}`),
       h('span', { class: 'grow' }),
-      stat('Cash', money(s.cash)),
-      stat('Net worth', money(Math.round(worth)), h('span', { class: growth >= 0 ? 'up' : 'down' }, ` ${growth >= 0 ? '+' : ''}${growth}%`)),
+      stat('Cash', h('span', { id: 'hud-cash' }, money(this._shown?.cash ?? s.cash))),
+      stat('Net worth', h('span', { id: 'hud-worth' }, money(Math.round(this._shown?.worth ?? worth))), h('span', { class: growth >= 0 ? 'up' : 'down' }, ` ${growth >= 0 ? '+' : ''}${growth}%`)),
       s.debt > 0 ? stat('Debt', money(s.debt), null, 'owe') : null,
       h('button', { class: 'btn small', type: 'button', onclick: () => this.enter('news') }, 'News'),
       h('button', { class: 'btn small primary', type: 'button', title: 'Go home and end the year', onclick: () => this.enter('home') }, 'End year ▶'),
-      h('button', { class: 'btn small', type: 'button', 'aria-label': 'Toggle sound', title: 'Sound', onclick: () => { setMuted(!isMuted()); this.renderHud(); } },
-        isMuted() ? 'Sound: off' : 'Sound: on')].filter(Boolean));
+      h('button', { class: 'btn small', type: 'button', 'aria-label': 'Toggle sound effects', title: 'Sound effects', onclick: () => { setMuted(!isMuted()); this.renderHud(); } },
+        isMuted() ? 'Sound: off' : 'Sound: on'),
+      h('button', { class: 'btn small', type: 'button', 'aria-label': 'Toggle music', title: 'Background music', onclick: () => { setMusic(!isMusicOn()); this.renderHud(); } },
+        isMusicOn() ? 'Music: on' : 'Music: off')].filter(Boolean));
+    // numbers roll to their new value instead of jumping
+    const prev = this._shown || { cash: s.cash, worth };
+    countBetween(document.getElementById('hud-cash'), prev.cash, s.cash);
+    countBetween(document.getElementById('hud-worth'), Math.round(prev.worth), Math.round(worth), 600, (v) => money(Math.round(v)));
+    this._shown = { cash: s.cash, worth };
     document.documentElement.style.setProperty('--hud-h', `${hud.offsetHeight}px`);
   },
 
@@ -153,6 +164,8 @@ export const app = {
     this.state = state;
     this.seenLessons = new Set(seen);
     document.body.classList.add('playing');
+    this._shown = null;
+    if (isMusicOn()) setMusic(true); // the Start click counts as the user gesture audio needs
     if (!this.town) this.town = createTown(document.getElementById('town'), { color: playerColor(state), onEnter: (id) => this.enter(id) });
     else this.town.setColor(playerColor(state));
     this.town.resize();
