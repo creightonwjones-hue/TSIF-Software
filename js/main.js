@@ -1,4 +1,4 @@
-// Sprout City: wires the town, the HUD, and the building screens together.
+// Sprout City: wires the town, the top bar, and the building screens together.
 import * as E from './engine.js';
 import { SETTINGS } from './scenarios.js';
 import { h, money, sound, toast, isMuted, setMuted } from './ui.js';
@@ -7,17 +7,28 @@ import { showStart } from './screens/start.js';
 import { bankScreen } from './screens/bank.js';
 import { exchangeScreen } from './screens/exchange.js';
 import { newsScreen, yearNewsPopup } from './screens/news.js';
-import { clockScreen } from './screens/clock.js';
+import { homeScreen } from './screens/home.js';
+import { lemonadeScreen } from './screens/lemonade.js';
 import { endScreen } from './screens/end.js';
 
 const SAVE_KEY = 'sprout-city-save';
 const overlay = document.getElementById('overlay');
 const hud = document.getElementById('hud');
 
+// Tutorial: visit these in order on Year 1.
+const TUTORIAL = [
+  ['bank', 'Walk with the arrow keys or WASD (or tap the map). Start at the BANK.'],
+  ['exchange', 'Next, visit the STOCK EXCHANGE to buy stocks and bonds.'],
+  ['lemonade', 'Now run your LEMONADE stand to earn some money.'],
+  ['home', 'Done for the year? Walk HOME to sleep and start the next year.'],
+];
+
+export const playerColor = (s) => (/^#[0-9a-f]{6}$/i.test(s.avatar) ? s.avatar : '#3E7AB8');
+
 export const app = {
   state: null,
   town: null,
-  tutorial: 0, // 0 = go to bank, 1 = go to exchange, 2 = go to clock, 3 = done
+  tutorial: 0,
   seenLessons: new Set(),
   screenRefresh: null,
 
@@ -30,18 +41,20 @@ export const app = {
   },
   clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ } },
 
-  // Show a full-screen building view (or a centered card with modal: true).
-  open({ title, emoji, theme = 'default', body, modal = false, closable = true, onClose }) {
+  // A building fills the screen (or a centered box with modal: true).
+  open({ title, theme = 'default', body, modal = false, closable = true, onClose }) {
     this.town?.pause();
     overlay.innerHTML = '';
     overlay.className = `overlay show ${modal ? 'is-modal' : 'is-screen'} theme-${theme}`;
     const close = () => { this.close(); onClose?.(); };
-    const head = modal ? null : h('header', { class: 'screen-head' },
-      h('h2', {}, h('span', { class: 'head-emoji' }, emoji), title),
+    const head = modal ? null : h('header', { class: 'box screen-head' },
+      h('h1', {}, title),
       h('div', { class: 'head-right' },
-        h('span', { class: 'pill cash-pill', id: 'screen-cash' }, `◈ CASH ${money(this.state.cash)}`),
-        closable ? h('button', { class: 'btn leave', onclick: () => { sound('door'); close(); } }, 'EXIT ✕') : null));
-    const panel = h('div', { class: modal ? 'modal-card pop' : 'screen slide-up' }, head, h('div', { class: 'screen-body' }, body));
+        h('span', { class: 'chip cash-chip', id: 'screen-cash' }, `Cash ${money(this.state.cash)}`),
+        closable ? h('button', { class: 'btn leave', type: 'button', onclick: () => { sound('door'); close(); } }, 'Leave ✕') : null));
+    const panel = modal
+      ? h('div', { class: 'box modal-card pop' }, body)
+      : h('div', { class: 'screen' }, head, h('div', { class: 'screen-body' }, body));
     overlay.append(panel);
     overlay._close = closable ? close : null;
     panel.querySelector('button.primary, input')?.focus({ preventScroll: true });
@@ -57,14 +70,14 @@ export const app = {
   refresh() {
     this.renderHud();
     const cash = document.getElementById('screen-cash');
-    if (cash) cash.textContent = `◈ CASH ${money(this.state.cash)}`;
+    if (cash) cash.textContent = `Cash ${money(this.state.cash)}`;
     this.screenRefresh?.();
     this.save();
   },
 
-  // Run an engine action; show the error kindly if it fails.
+  // Run an engine action; show the problem kindly if it fails.
   act(result, goodSound = 'coin') {
-    if (!result.ok) { sound('bad'); toast(`⚠️ ${result.error}`, 'error'); return false; }
+    if (!result.ok) { sound('bad'); toast(result.error, 'error'); return false; }
     sound(goodSound);
     this.refresh();
     return true;
@@ -81,25 +94,20 @@ export const app = {
     const s = this.state;
     if (!s) { hud.innerHTML = ''; return; }
     const year = Math.min(s.year, SETTINGS.years);
-    const pad = (n) => String(n).padStart(2, '0');
     const worth = E.netWorth(s);
-    const growth = worth / SETTINGS.startingCash - 1;
-    hud.replaceChildren(
-      h('div', { class: 'hud-left' },
-        h('span', { class: 'hud-avatar' }, s.avatar),
-        h('div', { class: 'hud-name' }, h('b', {}, s.nickname), h('small', {}, 'SPROUT CITY')),
-        h('div', { class: 'year-badge' },
-          h('small', {}, 'YEAR'), h('b', {}, `${pad(year)}`, h('span', { class: 'of' }, `/${SETTINGS.years}`)),
-          h('span', { class: 'year-bar' }, h('i', { style: `width:${(year / SETTINGS.years) * 100}%` })))),
-      h('div', { class: 'hud-stats' },
-        stat('CASH', money(s.cash)),
-        stat('NET WORTH', money(worth), 'big', h('span', { class: `chg ${growth >= 0 ? 'up' : 'down'}` }, `${growth >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(growth * 100))}%`)),
-        s.debt > 0 ? stat('DEBT', money(s.debt), 'owe') : null),
-      h('div', { class: 'hud-actions' },
-        h('button', { class: 'btn small ghost', title: 'Read the news', onclick: () => this.enter('news') }, '📰 NEWS'),
-        h('button', { class: 'btn small primary', title: 'End the year', onclick: () => this.enter('clock') }, 'END YEAR ⏩'),
-        h('button', { class: 'btn small ghost icon', title: isMuted() ? 'Sound off' : 'Sound on', 'aria-label': 'Toggle sound',
-          onclick: () => { setMuted(!isMuted()); this.renderHud(); } }, isMuted() ? '🔇' : '🔊')));
+    const growth = Math.round((worth / SETTINGS.startingCash - 1) * 100);
+    hud.replaceChildren(...[
+      h('b', { class: 'hud-title' }, 'Sprout City'),
+      h('span', { class: 'chip' }, `Year ${year} of ${SETTINGS.years}`),
+      h('span', { class: 'grow' }),
+      stat('Cash', money(s.cash)),
+      stat('Net worth', money(Math.round(worth)), h('span', { class: growth >= 0 ? 'up' : 'down' }, ` ${growth >= 0 ? '+' : ''}${growth}%`)),
+      s.debt > 0 ? stat('Debt', money(s.debt), null, 'owe') : null,
+      h('button', { class: 'btn small', type: 'button', onclick: () => this.enter('news') }, 'News'),
+      h('button', { class: 'btn small primary', type: 'button', title: 'Go home and end the year', onclick: () => this.enter('home') }, 'End year ▶'),
+      h('button', { class: 'btn small', type: 'button', 'aria-label': 'Toggle sound', title: 'Sound', onclick: () => { setMuted(!isMuted()); this.renderHud(); } },
+        isMuted() ? 'Sound: off' : 'Sound: on')].filter(Boolean));
+    document.documentElement.style.setProperty('--hud-h', `${hud.offsetHeight}px`);
   },
 
   enter(id) {
@@ -108,34 +116,29 @@ export const app = {
     if (id === 'bank') bankScreen(this);
     else if (id === 'exchange') exchangeScreen(this);
     else if (id === 'news') newsScreen(this);
-    else if (id === 'clock') clockScreen(this);
-    if (this.tutorial === 0 && id === 'bank') this.setTutorial(1);
-    else if (this.tutorial === 1 && id === 'exchange') this.setTutorial(2);
+    else if (id === 'lemonade') lemonadeScreen(this);
+    else if (id === 'home') homeScreen(this);
+    if (TUTORIAL[this.tutorial]?.[0] === id && id !== 'home') this.setTutorial(this.tutorial + 1);
   },
 
   setTutorial(n) {
     this.tutorial = n;
-    const tips = [
-      'MOVE with arrow keys / WASD (or tap the map). First stop: the 🏦 BANK',
-      'Next: head to the 📈 STOCK EXCHANGE to buy stocks and bonds',
-      'Done for the year? Walk into the 🕰️ TOWN CLOCK to end it',
-    ];
     const bar = document.getElementById('tutorial');
-    bar.textContent = tips[n] || '';
-    bar.classList.toggle('show', n < 3);
-    this.town?.setGuide(['bank', 'exchange', 'clock'][n] || null);
+    bar.textContent = TUTORIAL[n]?.[1] || '';
+    bar.classList.toggle('show', n < TUTORIAL.length);
+    this.town?.setGuide(TUTORIAL[n]?.[0] || null);
     this.save();
   },
 
   startGame(state, tutorial = 0, seen = []) {
+    E.ensureBiz(state);
     this.state = state;
     this.seenLessons = new Set(seen);
     document.body.classList.add('playing');
-    if (!this.town) {
-      this.town = createTown(document.getElementById('town'), { avatar: state.avatar, onEnter: (id) => this.enter(id) });
-    } else this.town.setAvatar(state.avatar);
+    if (!this.town) this.town = createTown(document.getElementById('town'), { color: playerColor(state), onEnter: (id) => this.enter(id) });
+    else this.town.setColor(playerColor(state));
     this.town.resize();
-    this.setTutorial(tutorial);
+    this.setTutorial(Math.min(tutorial, TUTORIAL.length));
     this.refresh();
     if (state.finished) return endScreen(this);
     yearNewsPopup(this);
@@ -143,7 +146,7 @@ export const app = {
 
   nextYearStarted() {
     this.refresh();
-    if (this.state.finished) return endScreen(this); // save is kept so a refresh still shows the results
+    if (this.state.finished) return endScreen(this); // the save is kept so a refresh still shows the results
     yearNewsPopup(this);
   },
 
@@ -156,15 +159,12 @@ export const app = {
   },
 };
 
-function stat(label, value, cls = '', extra = null) {
-  return h('div', { class: `stat ${cls}` }, h('small', {}, label), h('b', {}, value), extra);
+function stat(label, value, extra = null, cls = '') {
+  return h('span', { class: `stat ${cls}` }, h('small', {}, label), h('b', {}, value, extra));
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  const trade = overlay.querySelector('.trade-layer');
-  if (trade) { sound('click'); trade._close(); return; }
-  if (overlay._close) { sound('door'); overlay._close(); }
+  if (e.key === 'Escape' && overlay._close) { sound('door'); overlay._close(); }
 });
 
 window.sproutApp = app; // handy for testing in the browser console

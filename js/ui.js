@@ -84,7 +84,7 @@ export function toast(text, kind = 'info') {
   const box = document.getElementById('toasts');
   while (box.children.length >= 2) box.firstChild.remove();
   const t = kind === 'lesson'
-    ? h('div', { class: 'toast lesson' }, h('b', { class: 'toast-tag' }, 'PRO TIP'), h('span', {}, text))
+    ? h('div', { class: 'toast lesson' }, h('b', { class: 'toast-tag' }, 'Tip'), h('span', {}, text))
     : h('div', { class: `toast ${kind}` }, text);
   box.append(t);
   setTimeout(() => t.classList.add('out'), kind === 'lesson' ? 5200 : 2600);
@@ -177,4 +177,38 @@ export function moneyPop(amount, anchor) {
   el.style.top = `${r.top - 18}px`;
   document.body.append(el);
   setTimeout(() => el.remove(), 1300);
+}
+
+// ---------- Line chart for a price history (inline SVG) ----------
+export function lineChart(values, { w = 420, h = 150, labels = null } = {}) {
+  if (values.length < 2) {
+    return h_('div', { class: 'line-chart empty' }, 'The chart fills in as the years go by.');
+  }
+  const pad = { l: 8, r: 8, t: 12, b: labels ? 22 : 8 };
+  const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
+  const x = (i) => pad.l + (i / (values.length - 1)) * (w - pad.l - pad.r);
+  const y = (v) => pad.t + (1 - (v - min) / span) * (h - pad.t - pad.b);
+  const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const up = values[values.length - 1] >= values[0];
+  const col = up ? 'var(--up)' : 'var(--down)';
+  let svg = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="line-svg" role="img" aria-label="Price history">`;
+  svg += `<polygon points="${x(0)},${h - pad.b} ${pts} ${x(values.length - 1)},${h - pad.b}" fill="${col}" opacity=".10"/>`;
+  svg += `<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+  svg += '</svg>';
+  const wrap = h_('div', { class: 'line-chart' });
+  wrap.innerHTML = svg;
+  if (labels) wrap.append(h_('div', { class: 'chart-labels' }, ...labels.map((l) => h_('span', {}, l))));
+  return wrap;
+}
+const h_ = (...a) => h(...a);
+
+// Animate a number counting up inside an element.
+export function countUp(el, to, ms = 900) {
+  const t0 = performance.now();
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / ms);
+    el.textContent = money(Math.round(to * (1 - Math.pow(1 - p, 3)) * 100) / 100);
+    if (p < 1) requestAnimationFrame(step); else el.textContent = money(to);
+  };
+  requestAnimationFrame(step);
 }
