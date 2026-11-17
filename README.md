@@ -3,14 +3,15 @@ Software for the TSIF Club
 
 ## 🌱 Sprout City — an investing game for 5th graders
 
-Each kid starts with **$1,000** and has **10 years** to grow it. They walk around a cartoon town:
+Each kid starts with **$1,000** and has **10 years** to grow it. They walk around a pixel-art main street:
 
-- 🏦 **Bank**: put money in savings (safe, +3%/yr) or take out a loan (costs 8%/yr)
-- 📈 **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds — tap one to trade
-- 📰 **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
-- 🕰️ **Town Clock**: end the year and see what happened
+- **Bank**: put money in savings (safe, +3%/yr) or take out a loan (costs 8%/yr)
+- **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds
+- **Lemonade Stand**: run one shift a year and buy upgrades that grow the business
+- **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
+- **Home**: go to sleep to end the year and see what happened
 
-At the end, kids see their **final score** (net worth — show it to the club leader; the highest wins 🏆 Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free.
+At the end, kids see their **final score** (net worth: show it to the club leader; the highest wins Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free, Business Owner.
 
 ### Running it in class
 - Play link: **https://creightonwjones-hue.github.io/TSIF-Software/**
@@ -21,9 +22,9 @@ At the end, kids see their **final score** (net worth — show it to the club le
 - No accounts, no data sent anywhere. Kids should use a nickname, not their full name.
 
 ### Editing the game (club members)
-Everything you'd want to change — company names, news headlines, how much the news moves prices — is in **`js/scenarios.js`**, with comments explaining each part.
+Everything you'd want to change — company names, news headlines, how much the news moves prices, the lemonade stand's prices and upgrades — is in **`js/scenarios.js`**, with comments explaining each part.
 
-After editing, run the tests to make sure smart play (spreading money out and staying calm in a crash) still beats gambling:
+After editing, run the tests to make sure smart play (spreading money out and staying calm in a crash) still beats gambling, and that the lemonade stand helps without making investing pointless:
 
 ```bash
 npm test
@@ -46,5 +47,5 @@ Then open http://localhost:8000.
 | `js/town.js` | The walkable town map |
 | `js/screens/*.js` | Each building's screen, plus start and end screens |
 | `js/main.js` | Wires it all together |
-| `css/style.css` | Colors and layout ("Night Market" neon theme) |
+| `css/style.css` | Colors and layout (cozy pixel "main street" theme) |
 | `tests/` | Automated tests for the engine |

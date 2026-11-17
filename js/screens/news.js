@@ -10,13 +10,13 @@ export function yearNewsPopup(app) {
   app.open({
     modal: true, theme: 'news', closable: true,
     body: h('div', { class: 'year-start' },
-      h('div', { class: 'year-big' }, h('small', {}, 'YEAR'), `${String(s.year).padStart(2, '0')}`, h('span', { class: 'of' }, `/${SETTINGS.years}`)),
+      h('h2', {}, `Year ${s.year} of ${SETTINGS.years}`),
       h('div', { class: 'paper' },
-        h('div', { class: 'paper-head' }, h('span', { class: 'live-dot' }), 'SPROUT CITY NEWS'),
+        h('small', { class: 'paper-head' }, 'The Sprout City Times'),
         h('p', { class: 'headline' }, ev.headline)),
-      ev.tip ? h('p', { class: 'tip-teaser' }, '📣 A hot tip is going around — check the News Stand.') : null,
-      h('p', { class: 'hint' }, 'Make your moves at the 🏦 Bank and 📈 Exchange, then hit the 🕰️ Town Clock.'),
-      h('button', { class: 'btn primary big', onclick: () => { sound('click'); app.close(); } }, 'PLAY ▶')),
+      ev.tip ? h('p', { class: 'tip-teaser' }, 'Someone left a hot tip at the News Stand…') : null,
+      h('p', { class: 'hint' }, 'Visit the Bank, the Stock Exchange and your Lemonade Stand. When you\'re done, walk Home to end the year.'),
+      h('button', { class: 'btn primary', type: 'button', onclick: () => { sound('click'); app.close(); } }, 'Start the year ▶')),
   });
 }
 
@@ -26,18 +26,18 @@ export function newsScreen(app) {
   const ev = sc.years[s.year - 1];
   const past = sc.years.slice(0, s.year - 1).map((y, i) => ({ ...y, n: i + 1 })).reverse();
   app.open({
-    title: 'News Stand', emoji: '📰', theme: 'news',
+    title: 'News Stand', theme: 'news',
     body: h('div', { class: 'news' },
       h('div', { class: 'paper big-paper' },
-        h('div', { class: 'paper-head' }, h('span', { class: 'live-dot' }), `SPROUT CITY NEWS · YEAR ${s.year}`),
+        h('small', { class: 'paper-head' }, `The Sprout City Times · Year ${s.year}`),
         h('p', { class: 'headline' }, ev.headline),
         h('p', { class: 'hint' }, 'Think: which companies does this help? Which does it hurt?')),
       ev.tip ? h('div', { class: 'tip-note' },
-        h('div', { class: 'tip-label' }, '📣 HOT TIP · @totally_legit_investor'),
+        h('b', { class: 'tip-label' }, 'Hot tip from @totally_legit_investor'),
         h('p', {}, ev.tip),
         h('small', {}, 'Fact or hype? Your call.')) : null,
       past.length ? h('div', { class: 'past' },
-        h('h3', {}, 'PAST HEADLINES'),
+        h('h2', {}, 'Past headlines'),
         ...past.map((y) => h('div', { class: 'past-item' },
           h('b', {}, `Year ${y.n}`),
           h('p', {}, y.headline),

@@ -84,7 +84,7 @@ export function toast(text, kind = 'info') {
   const box = document.getElementById('toasts');
   while (box.children.length >= 2) box.firstChild.remove();
   const t = kind === 'lesson'
-    ? h('div', { class: 'toast lesson' }, h('b', { class: 'toast-tag' }, 'PRO TIP'), h('span', {}, text))
+    ? h('div', { class: 'toast lesson' }, h('b', { class: 'toast-tag' }, 'Tip'), h('span', {}, text))
     : h('div', { class: `toast ${kind}` }, text);
   box.append(t);
   setTimeout(() => t.classList.add('out'), kind === 'lesson' ? 5200 : 2600);

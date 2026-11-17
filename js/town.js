@@ -1,354 +1,287 @@
-// Sprout City town: an isometric (tilted 3D) map drawn on a <canvas>.
-// The game logic lives in a flat 2D "world" (960 × 600). We only project it to look 3D.
-// Arrow keys / WASD move in screen directions, or tap/click a spot (or a building) to walk there.
+// Sprout City town: a top-down pixel-art main street drawn on a <canvas>.
+// The map is 32 × 18 tiles of 16 px, drawn small and scaled up crisply.
+// Walk with arrow keys / WASD, or tap anywhere (or on a building) to walk there.
 
-export const WORLD = { w: 960, h: 600 };
-const SPEED = 230; // world units per second
-const R = 18;      // player radius (world units)
+const T = 16, MW = 32, MH = 18, W = MW * T, H = MH * T;
+const SPEED = 82; // map pixels per second
 
-const C = {
-  bg: '#EFE8DA', slabL: '#C9BFA9', slabR: '#B5AA93',
-  grass: '#A9C49B', grassLine: 'rgba(80,110,70,.10)', road: '#D9CDB3', roadEdge: '#CBBE9F', roadLine: '#F4EFE6',
-  path: '#E6D9C0', water: '#7FA3B8', waterHi: '#A9C3D1',
-  ink: '#24313A', shadow: 'rgba(36,49,58,.16)',
-  treeA: '#5E8C61', treeB: '#4E7A55', treeC: '#7FA36F', trunk: '#8A6E55',
-  window: '#5B7C99', windowLit: '#F3E3B5', door: '#3D4A52',
-};
-
-// Buildings. side: which wall the door is on ('bottom' = +y, 'right' = +x). H = height.
+const OUTLINE = '#26313F';
+// Buildings (tile units). `door` = the door's tile column on the bottom wall. `enter` = can walk in.
 export const BUILDINGS = [
-  { id: 'bank', label: 'Bank', x: 50, y: 70, w: 220, h: 170, H: 95, side: 'bottom', enter: true,
-    wall: '#F1E9DA', wallR: '#DCD2C0', roof: '#5B7C99', roofEdge: '#4A6782', style: 'bank', dot: '#D2A03C' },
-  { id: 'clock', label: 'Town Clock', x: 330, y: 125, w: 100, h: 115, H: 165, side: 'bottom', enter: true,
-    wall: '#EADFCB', wallR: '#D4C7AE', roof: '#C4613F', roofEdge: '#A84F31', style: 'tower', dot: '#5B7C99' },
-  { id: 'exchange', label: 'Stock Exchange', x: 610, y: 50, w: 290, h: 190, H: 110, side: 'bottom', enter: true,
-    wall: '#F4EFE6', wallR: '#DED6C7', roof: '#2F6B4F', roofEdge: '#255A41', style: 'exchange', dot: '#2F8A57' },
-  { id: 'news', label: 'News Stand', x: 90, y: 420, w: 190, h: 120, H: 60, side: 'right', enter: true,
-    wall: '#F1E9DA', wallR: '#DCD2C0', roof: '#D2A03C', roofEdge: '#B88A2F', style: 'shop', dot: '#C4613F' },
-  // decoration only
-  { id: 'frosty', x: 600, y: 420, w: 90, h: 80, H: 50, wall: '#F3E6E6', wallR: '#DECFCF', roof: '#D9A7A7', roofEdge: '#C28F8F', style: 'shop' },
-  { id: 'burgers', x: 720, y: 420, w: 110, h: 100, H: 60, wall: '#F1E9DA', wallR: '#DCD2C0', roof: '#C4613F', roofEdge: '#A84F31', style: 'shop' },
-  { id: 'slime', x: 860, y: 410, w: 80, h: 110, H: 80, wall: '#E3ECDD', wallR: '#CCD8C4', roof: '#7FA36F', roofEdge: '#6A8D5B', style: 'factory' },
+  { id: 'bank', label: 'BANK', x: 2, y: 2, w: 7, h: 5, door: 5, wall: 'brick', roof: 'blue', enter: true },
+  { id: 'home', label: 'HOME', x: 11, y: 2, w: 4, h: 5, door: 12, wall: 'sky', roof: 'red', enter: true, chimney: true },
+  { id: 'exchange', label: 'STOCK EXCHANGE', x: 19, y: 2, w: 10, h: 5, door: 23, wall: 'stone', roof: 'green', enter: true, columns: true },
+  { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, wall: 'cream', roof: 'orange', enter: true, awning: '#4A6A9A' },
+  { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, wall: 'lemon', roof: 'red', enter: true, awning: '#E0B42E' },
+  { id: 'factory', label: '', x: 24, y: 11, w: 5, h: 4, door: 26, wall: 'brick', roof: 'gray', chimney: true },
 ];
-const TREES = [[300, 60, 'round'], [445, 70, 'pine'], [300, 262, 'round'], [585, 150, 'pine'], [585, 250, 'round'],
-  [935, 110, 'pine'], [935, 255, 'round'], [28, 262, 'pine'], [40, 400, 'round'], [40, 585, 'pine'], [210, 585, 'round'],
-  [565, 420, 'pine'], [565, 560, 'round'], [700, 572, 'pine'], [800, 575, 'round'], [930, 578, 'pine'], [25, 120, 'round']];
-const POND = { x: 380, y: 555, rx: 55, ry: 32 };
-const ROADS = [
-  { x: 0, y: 285, w: WORLD.w, h: 80 },   // main street
-  { x: 470, y: 0, w: 80, h: WORLD.h },   // cross street
-];
+const PATHS = [[1, 8, 30, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [23, 7, 1, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
+const POND = [10, 11, 3, 3];
+const HEDGE_GAPS = [5, 12, 15, 16, 23];
+const TREES = [];
+for (let x = 0; x < MW; x++) { TREES.push([x, 0]); TREES.push([x, MH - 1]); }
+for (let y = 1; y < MH - 1; y++) { TREES.push([0, y]); TREES.push([MW - 1, y]); }
+TREES.push([9, 2], [16, 2], [16, 4], [1, 11], [13, 15], [9, 12], [29, 13], [17, 12]);
+const FLOWERS = [[3, 6.6], [7, 6.6], [20, 6.6], [27, 6.6], [10, 15], [11, 15], [2, 14], [23, 12], [23, 13]];
+const LAMPS = [[4, 10], [11, 10], [20, 10], [28, 10]];
 
-function doorRect(b) {
-  if (b.side === 'bottom') { const cx = b.x + b.w / 2; return { x: cx - 23, y: b.y + b.h - 2, w: 46, h: 14 }; }
-  if (b.side === 'right') { const cy = b.y + b.h / 2; return { x: b.x + b.w - 2, y: cy - 23, w: 14, h: 46 }; }
-  return null;
-}
-function doorSpot(b) { // where the player stands just outside the door
-  if (b.side === 'right') return { x: b.x + b.w + R + 22, y: b.y + b.h / 2 };
-  return { x: b.x + b.w / 2, y: b.y + b.h + R + 22 };
-}
+const ROOF = { blue: ['#4A6A9A', '#3A5680', '#5C7EB0'], red: ['#B4503E', '#8E3E30', '#C8664F'], green: ['#3F7F6A', '#2F6655', '#52957E'],
+  orange: ['#D08A3A', '#A86E2A', '#E2A050'], gray: ['#6E7480', '#585D68', '#848A96'] };
+const DOOR_COLOR = { bank: '#2F4E6E', exchange: '#2F6655', home: '#8E3E30', lemonade: '#B08A1E' };
 
-// ---- isometric projection (iso units; the canvas is scaled by k) ----
-const P = (x, y, z = 0) => [x - y, (x + y) / 2 - z];
-const ISO_W = WORLD.w + WORLD.h;            // 1560
-const ISO_H = (WORLD.w + WORLD.h) / 2;      // 780
-const TOP_PAD = 190, BOTTOM_PAD = 40, SIDE_PAD = 30;
+// ---------- solid tiles & doors ----------
+const solid = Array.from({ length: MH }, () => Array(MW).fill(false));
+const doorAt = {};
+for (const [x, y] of TREES) solid[y][x] = true;
+for (const b of BUILDINGS) for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) solid[y][x] = true;
+for (const b of BUILDINGS) if (b.enter) doorAt[`${b.door},${b.y + b.h - 1}`] = b;
+for (let y = POND[1]; y < POND[1] + POND[3]; y++) for (let x = POND[0]; x < POND[0] + POND[2]; x++) solid[y][x] = true;
+for (let x = 1; x < MW - 1; x++) if (!HEDGE_GAPS.includes(x)) solid[7][x] = true;
+const isSolid = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || solid[ty][tx];
 
-export function createTown(canvas, { color = '#C4613F', onEnter = () => {} } = {}) {
-  const g = canvas.getContext('2d');
-  const me = { x: 510, y: 325, bob: 0, moving: false };
-  let target = null, targetBuilding = null;
-  const keys = new Set();
-  let lastDoor = null;
-  let paused = false;
-  let guide = null;
-  let k = 1, ox = 0, oy = 0, cssW = 0, cssH = 0;
-  let staticLayer = null;
-  let last = performance.now();
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
 
-  function solid(x, y) {
-    if (x < R || y < R || x > WORLD.w - R || y > WORLD.h - R) return true;
-    for (const b of BUILDINGS) {
-      if (x > b.x - R + 4 && x < b.x + b.w + R - 4 && y > b.y - R + 4 && y < b.y + b.h + R - 4) return true;
+// ---------- static scenery (drawn once) ----------
+function drawStatic() {
+  seed = 7;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  const G = ['#6AA046', '#5E9440', '#76AE50', '#83BA58'];
+  R(c, 0, 0, W, H, G[0]);
+  for (let i = 0; i < 2600; i++) R(c, Math.floor(rnd() * W), Math.floor(rnd() * H), 1, rnd() < .5 ? 2 : 1, G[1 + Math.floor(rnd() * 3)]);
+  // cobblestone streets with a pale curb
+  for (const [x, y, w, h] of PATHS) R(c, x * T - 1, y * T - 1, w * T + 2, h * T + 2, '#D9D2C3');
+  for (const [x, y, w, h] of PATHS) {
+    R(c, x * T + 1, y * T + 1, w * T - 2, h * T - 2, '#9E978C');
+    for (let yy = y * T + 1, row = 0; yy < (y + h) * T - 1; yy += 4, row++) {
+      for (let xx = x * T + 1 + (row % 2) * 3; xx < (x + w) * T - 1; xx += 6) {
+        R(c, xx, yy, Math.min(5, (x + w) * T - 1 - xx), 3, ['#B3AC9F', '#A8A194', '#BDB6A9'][Math.floor(rnd() * 3)]);
+      }
     }
-    for (const [tx, ty] of TREES) if (Math.hypot(x - tx, y - ty) < R + 10) return true;
-    if (((x - POND.x) / (POND.rx + R)) ** 2 + ((y - POND.y) / (POND.ry + R)) ** 2 < 1) return true;
-    return false;
   }
+  // pond
+  const [px, py, pw, ph] = POND.map((v) => v * T);
+  R(c, px - 2, py + 1, pw + 4, ph - 2, '#C9C2B5'); R(c, px + 1, py - 2, pw - 2, ph + 4, '#C9C2B5');
+  R(c, px, py + 2, pw, ph - 4, '#4F86B0'); R(c, px + 2, py, pw - 4, ph, '#4F86B0');
+  R(c, px + 3, py + 3, pw - 6, ph - 6, '#5E97C0');
+  for (let i = 0; i < 6; i++) R(c, px + 6 + i * 6, py + 8 + (i % 3) * 10, 4, 1, '#9CC6E0');
+  // hedges along the street
+  for (let x = 1; x < MW - 1; x++) {
+    if (HEDGE_GAPS.includes(x)) continue;
+    const X = x * T, Y = 7 * T + 8;
+    R(c, X, Y, 16, 6, '#2F6A2C'); R(c, X + 1, Y - 1, 14, 6, '#3F7F38'); R(c, X + 3, Y, 3, 2, '#5A9A48'); R(c, X + 10, Y + 1, 2, 2, '#5A9A48');
+  }
+  for (const [fx, fy] of FLOWERS) {
+    const x = fx * T, y = Math.round(fy * T);
+    for (const [ox, oy, col] of [[3, 12, '#E8607A'], [8, 13, '#F2D45C'], [12, 12, '#A97FD8']]) { R(c, x + ox, y + oy, 2, 2, col); R(c, x + ox, y + oy + 2, 1, 2, '#3E7A2E'); }
+  }
+  for (const b of BUILDINGS) drawBuilding(c, b);
+  for (const [lx, ly] of LAMPS) { const x = lx * T + 7, y = ly * T; R(c, x, y - 12, 2, 14, OUTLINE); R(c, x - 2, y - 16, 6, 5, OUTLINE); R(c, x - 1, y - 15, 4, 3, '#F8E08A'); }
+  return cv;
+}
+
+function wallFill(c, kind, x, y, w, h) {
+  const siding = (col, line) => { R(c, x, y, w, h, col); for (let yy = y + 2; yy < y + h; yy += 3) R(c, x, yy, w, 1, line); };
+  if (kind === 'brick') {
+    R(c, x, y, w, h, '#B5563F');
+    for (let yy = y, r = 0; yy < y + h; yy += 3, r++) { R(c, x, yy, w, 1, '#93412F'); for (let xx = x + (r % 2) * 3; xx < x + w; xx += 6) R(c, xx, yy, 1, 3, '#93412F'); }
+  } else if (kind === 'stone') { R(c, x, y, w, h, '#E7E1D4'); for (let yy = y; yy < y + h; yy += 6) R(c, x, yy, w, 1, '#D2CABA'); }
+  else if (kind === 'sky') siding('#CFE0EC', '#B3C9D9');
+  else if (kind === 'lemon') siding('#F6E7A8', '#E3D088');
+  else siding('#F1E7D2', '#DCCFB4');
+}
+
+function drawBuilding(c, b) {
+  const x = b.x * T, y = b.y * T, w = b.w * T, h = b.h * T, wallH = 28, roofH = h - wallH;
+  const [r1, r2, r3] = ROOF[b.roof];
+  R(c, x + 4, y + 6, w, h, 'rgba(20,30,20,.22)'); // shadow
+  wallFill(c, b.wall, x, y + roofH, w, wallH);
+  R(c, x, y + roofH, w, 2, '#FFFFFF'); R(c, x, y + roofH + 2, w, 1, 'rgba(0,0,0,.15)'); // trim
+  R(c, x, y + h - 4, w, 4, '#8D8A84'); R(c, x, y + h - 4, w, 1, '#A9A6A0'); // foundation
+  const doorX = b.door * T + 3;
+  if (b.columns) for (let i = 0; i < 7; i++) {
+    const cx = x + 10 + i * 26;
+    if (Math.abs(cx - (doorX + 5)) < 16 || cx > x + w - 8) continue;
+    R(c, cx, y + roofH + 3, 5, wallH - 7, '#FFFFFF'); R(c, cx + 4, y + roofH + 3, 1, wallH - 7, '#CFC7B8');
+  }
+  if (b.awning) for (let i = 0; i < w / 6; i++) R(c, x + i * 6, y + roofH + 3, 6, 4, i % 2 ? '#FFFFFF' : b.awning);
+  const wins = b.id === 'lemonade' ? [] : b.columns ? [x + 20, x + w - 34] : b.w <= 4 ? [x + 44] : [x + 8, x + w - 22];
+  for (const wx of wins) {
+    if (Math.abs(wx + 6 - (doorX + 5)) < 14) continue;
+    R(c, wx - 1, y + roofH + 6, 14, 12, '#FFFFFF'); R(c, wx, y + roofH + 7, 12, 10, '#7FB0D6'); R(c, wx + 1, y + roofH + 8, 3, 3, '#D4ECFA');
+    R(c, wx + 5, y + roofH + 7, 2, 10, '#FFFFFF'); R(c, wx, y + roofH + 11, 12, 1, '#FFFFFF');
+    R(c, wx - 1, y + roofH + 18, 14, 3, '#5E6A78'); R(c, wx, y + roofH + 17, 2, 2, '#E8607A'); R(c, wx + 5, y + roofH + 17, 2, 2, '#F2D45C'); R(c, wx + 10, y + roofH + 17, 2, 2, '#E8607A');
+  }
+  if (b.id === 'lemonade') { // counter with a pitcher
+    R(c, x + 34, y + roofH + 10, 24, 10, '#FFFFFF'); R(c, x + 35, y + roofH + 11, 22, 8, '#F2D45C'); R(c, x + 42, y + roofH + 5, 6, 6, '#F2D45C'); R(c, x + 42, y + roofH + 5, 6, 1, '#FFFFFF');
+  }
+  // door
+  R(c, doorX - 1, y + h - 19, 12, 19, '#FFFFFF'); R(c, doorX, y + h - 18, 10, 18, DOOR_COLOR[b.id] || '#5E6A78');
+  R(c, doorX + 1, y + h - 17, 8, 6, 'rgba(255,255,255,.25)'); R(c, doorX + 7, y + h - 9, 2, 2, '#E8C060');
+  // shingle roof
+  R(c, x - 3, y, w + 6, roofH + 2, r2);
+  for (let ry = y + 1, row = 0; ry < y + roofH; ry += 4, row++) for (let rx = x - 3 + (row % 2) * 3; rx < x + w + 3; rx += 6) { R(c, rx, ry, 5, 3, r1); R(c, rx, ry, 5, 1, r3); }
+  R(c, x - 3, y + roofH, w + 6, 2, OUTLINE);
+  if (b.chimney) { R(c, x + w - 18, y - 14, 9, 16, '#7A3A2C'); R(c, x + w - 17, y - 14, 7, 2, '#93412F'); }
+}
+
+function drawTree(c, tx, ty) {
+  const x = tx * T, y = ty * T;
+  R(c, x + 2, y + 13, 14, 3, 'rgba(20,30,20,.22)');
+  R(c, x + 6, y + 10, 4, 6, '#6B4A30');
+  R(c, x + 1, y + 2, 14, 10, '#2F5E2A'); R(c, x + 3, y, 10, 14, '#2F5E2A');
+  R(c, x + 2, y + 2, 12, 8, '#3F7A34'); R(c, x + 4, y + 1, 8, 10, '#3F7A34');
+  R(c, x + 4, y + 2, 5, 4, '#5A9A44'); R(c, x + 9, y + 6, 3, 3, '#4E8A3C'); R(c, x + 5, y + 3, 2, 1, '#7CB85A');
+}
+
+// Player sprite: 12 × 16, four directions, two-frame walk.
+function drawPlayer(c, px, py, dir, frame, shirt) {
+  const x = Math.round(px) - 6, y = Math.round(py) - 16, O = OUTLINE, SKIN = '#F2CDA6', HAIR = '#5A3A28', PANTS = '#34507E';
+  R(c, x + 2, y + 15, 9, 2, 'rgba(0,0,0,.2)');
+  R(c, x + 2, y, 8, 1, O); R(c, x + 1, y + 1, 10, 7, O);
+  if (dir === 'up') { R(c, x + 2, y + 1, 8, 6, HAIR); }
+  else {
+    R(c, x + 2, y + 1, 8, 3, HAIR); R(c, x + 2, y + 4, 8, 3, SKIN);
+    if (dir === 'down') { R(c, x + 4, y + 5, 1, 1, O); R(c, x + 7, y + 5, 1, 1, O); }
+    else if (dir === 'left') { R(c, x + 2, y + 4, 2, 2, HAIR); R(c, x + 4, y + 5, 1, 1, O); }
+    else { R(c, x + 8, y + 4, 2, 2, HAIR); R(c, x + 7, y + 5, 1, 1, O); }
+  }
+  R(c, x + 1, y + 8, 10, 5, O); R(c, x + 2, y + 8, 8, 4, shirt);
+  if (dir === 'down' || dir === 'up') { R(c, x, y + 9, 2, 3, SKIN); R(c, x + 10, y + 9, 2, 3, SKIN); }
+  else R(c, dir === 'left' ? x + 4 : x + 6, y + 9, 2, 3, SKIN);
+  const step = frame ? 1 : 0;
+  R(c, x + 2, y + 12, 8, 3, O);
+  R(c, x + 3, y + 12, 2, 2 - step, PANTS); R(c, x + 7, y + 12, 2, 1 + step, PANTS);
+}
+
+export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {}) {
+  const g = canvas.getContext('2d');
+  const low = document.createElement('canvas'); low.width = W; low.height = H;
+  const lg = low.getContext('2d');
+  let scenery = null;
+  const me = { x: 16 * T + 8, y: 9 * T + 12, dir: 'down', moving: false, anim: 0 };
+  let path = null, pathBuilding = null;
+  const keys = new Set();
+  let paused = false, guide = null, S = 1, last = performance.now();
 
   function resize() {
     const box = canvas.parentElement.getBoundingClientRect();
-    cssW = box.width; cssH = box.height;
-    k = Math.min((cssW - SIDE_PAD * 2) / ISO_W, (cssH - 10) / (ISO_H + TOP_PAD + BOTTOM_PAD));
-    ox = cssW / 2 - ((WORLD.w - WORLD.h) / 2) * k; // centre the diamond
-    oy = (cssH - (ISO_H + TOP_PAD + BOTTOM_PAD) * k) / 2 + TOP_PAD * k;
+    const fit = Math.min(box.width / W, box.height / H);
     const dpr = window.devicePixelRatio || 1;
-    canvas.style.width = `${cssW}px`; canvas.style.height = `${cssH}px`;
-    canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
-    staticLayer = renderStatic(dpr);
-  }
-  const toWorld = (sx, sy) => { // screen (css px) -> world
-    const u = (sx - ox) / k, v = (sy - oy) / k; // u = x - y, v = (x + y) / 2
-    return { x: (u + 2 * v) / 2, y: (2 * v - u) / 2 };
-  };
-
-  // ---------- drawing helpers ----------
-  function poly(s, pts, fill, stroke) {
-    s.beginPath(); pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y))); s.closePath();
-    if (fill) { s.fillStyle = fill; s.fill(); }
-    if (stroke) { s.strokeStyle = stroke; s.lineWidth = 1; s.stroke(); }
-  }
-  const rectPts = (x, y, w, h, z = 0) => [P(x, y, z), P(x + w, y, z), P(x + w, y + h, z), P(x, y + h, z)];
-  // Draw on a building wall using (u = along wall, z = up) coordinates.
-  function onFace(s, b, face, fn) {
-    s.save();
-    if (face === 'L') { const [px, py] = P(b.x, b.y + b.h); s.transform(1, 0.5, 0, -1, px, py); }
-    else { const [px, py] = P(b.x + b.w, b.y); s.transform(-1, 0.5, 0, -1, px, py); }
-    fn(face === 'L' ? b.w : b.h);
-    s.restore();
-  }
-  // Draw on the ground using world (x, y) offsets around a point.
-  function onGround(s, x, y, fn) {
-    s.save(); const [px, py] = P(x, y); s.transform(1, 0.5, -1, 0.5, px, py); fn(); s.restore();
+    canvas.style.width = `${Math.floor(W * fit)}px`; canvas.style.height = `${Math.floor(H * fit)}px`;
+    canvas.width = Math.floor(W * fit * dpr); canvas.height = Math.floor(H * fit * dpr);
+    S = canvas.width / W;
+    scenery = drawStatic();
   }
 
-  function renderStatic(dpr) {
-    const c = document.createElement('canvas');
-    c.width = canvas.width; c.height = canvas.height;
-    const s = c.getContext('2d');
-    s.setTransform(dpr * k, 0, 0, dpr * k, dpr * ox, dpr * oy);
-    // floating slab
-    const T = 26;
-    poly(s, [P(0, WORLD.h), P(WORLD.w, WORLD.h), [P(WORLD.w, WORLD.h)[0], P(WORLD.w, WORLD.h)[1] + T], [P(0, WORLD.h)[0], P(0, WORLD.h)[1] + T]], C.slabL);
-    poly(s, [P(WORLD.w, 0), P(WORLD.w, WORLD.h), [P(WORLD.w, WORLD.h)[0], P(WORLD.w, WORLD.h)[1] + T], [P(WORLD.w, 0)[0], P(WORLD.w, 0)[1] + T]], C.slabR);
-    poly(s, rectPts(0, 0, WORLD.w, WORLD.h), C.grass);
-    // subtle tile grid
-    s.strokeStyle = C.grassLine; s.lineWidth = 1;
-    for (let x = 40; x < WORLD.w; x += 40) { s.beginPath(); s.moveTo(...P(x, 0)); s.lineTo(...P(x, WORLD.h)); s.stroke(); }
-    for (let y = 40; y < WORLD.h; y += 40) { s.beginPath(); s.moveTo(...P(0, y)); s.lineTo(...P(WORLD.w, y)); s.stroke(); }
-    // roads
-    for (const r of ROADS) poly(s, rectPts(r.x - 3, r.y - 3, r.w + 6, r.h + 6), C.roadEdge);
-    for (const r of ROADS) poly(s, rectPts(r.x, r.y, r.w, r.h), C.road);
-    s.strokeStyle = C.roadLine; s.lineWidth = 3; s.setLineDash([18, 16]);
-    s.beginPath(); s.moveTo(...P(0, 325)); s.lineTo(...P(470, 325)); s.moveTo(...P(550, 325)); s.lineTo(...P(WORLD.w, 325));
-    s.moveTo(...P(510, 0)); s.lineTo(...P(510, 285)); s.moveTo(...P(510, 365)); s.lineTo(...P(510, WORLD.h)); s.stroke();
-    s.setLineDash([]);
-    // paths to doors
-    for (const b of BUILDINGS) {
-      if (!b.enter) continue;
-      if (b.side === 'bottom') poly(s, rectPts(b.x + b.w / 2 - 24, b.y + b.h, 48, 285 - (b.y + b.h)), C.path);
-      else poly(s, rectPts(b.x + b.w, b.y + b.h / 2 - 24, 470 - (b.x + b.w), 48), C.path);
-    }
-    // pond
-    onGround(s, POND.x, POND.y, () => {
-      s.fillStyle = C.roadEdge; s.beginPath(); s.ellipse(0, 0, POND.rx + 6, POND.ry + 6, 0, 0, Math.PI * 2); s.fill();
-      s.fillStyle = C.water; s.beginPath(); s.ellipse(0, 0, POND.rx, POND.ry, 0, 0, Math.PI * 2); s.fill();
-      s.fillStyle = C.waterHi; s.beginPath(); s.ellipse(-12, -8, POND.rx * 0.45, POND.ry * 0.25, 0, 0, Math.PI * 2); s.fill();
-    });
-    // building shadows (cast to the lower-left)
-    for (const b of BUILDINGS) poly(s, [P(b.x, b.y + b.h), P(b.x + b.w, b.y + b.h), P(b.x + b.w + 10, b.y + b.h + b.H * 0.25), P(b.x + 10, b.y + b.h + b.H * 0.25)], C.shadow);
-    return c;
+  // feet hit-box corners
+  const corners = (x, y) => [[x - 4, y - 3], [x + 4, y - 3], [x - 4, y], [x + 4, y]];
+  const blocked = (x, y) => corners(x, y).some(([cx, cy]) => isSolid(Math.floor(cx / T), Math.floor(cy / T)));
+  const doorHit = (x, y) => { for (const [cx, cy] of corners(x, y)) { const b = doorAt[`${Math.floor(cx / T)},${Math.floor(cy / T)}`]; if (b) return b; } return null; };
+
+  function enter(b) {
+    keys.clear(); path = null; pathBuilding = null; me.moving = false;
+    me.x = b.door * T + 8; me.y = (b.y + b.h) * T + 12; me.dir = 'down';
+    onEnter(b.id);
   }
 
-  function drawBuilding(s, b) {
-    const H = b.H;
-    const A = P(b.x, b.y, H), B = P(b.x + b.w, b.y, H), Cc = P(b.x + b.w, b.y + b.h, H), D = P(b.x, b.y + b.h, H);
-    // walls
-    poly(s, [P(b.x, b.y + b.h), P(b.x + b.w, b.y + b.h), Cc, D], b.wall, 'rgba(36,49,58,.25)');
-    poly(s, [P(b.x + b.w, b.y), P(b.x + b.w, b.y + b.h), Cc, B], b.wallR, 'rgba(36,49,58,.25)');
-    // windows
-    const win = (len, z0, z1, n, skip) => {
-      for (let i = 0; i < n; i++) {
-        const u = (len / (n + 1)) * (i + 1);
-        if (skip && Math.abs(u - len / 2) < 34) continue;
-        s.fillStyle = C.window; s.fillRect(u - 7, z0, 14, z1 - z0);
-        s.fillStyle = 'rgba(255,255,255,.35)'; s.fillRect(u - 7, z1 - 4, 14, 4);
+  function moveBy(dx, dy) {
+    const nx = me.x + dx, ny = me.y + dy;
+    const b = doorHit(nx, ny);
+    if (b && dy < 0) { enter(b); return true; }
+    if (!blocked(nx, me.y)) me.x = nx;
+    if (!blocked(me.x, ny)) me.y = ny;
+    return false;
+  }
+
+  function step(dt) {
+    let dx = 0, dy = 0;
+    if (keys.has('left')) dx -= 1; if (keys.has('right')) dx += 1;
+    if (keys.has('up')) dy -= 1; if (keys.has('down')) dy += 1;
+    if (dx || dy) { path = null; pathBuilding = null; }
+    else if (path) {
+      const [tx, ty] = path[0];
+      const gx = tx * T + 8, gy = ty * T + 12;
+      const ex = gx - me.x, ey = gy - me.y, d = Math.hypot(ex, ey);
+      if (d < 2) {
+        me.x = gx; me.y = gy; path.shift();
+        if (!path.length) {
+          path = null;
+          if (pathBuilding) { const b = pathBuilding; pathBuilding = null; enter(b); return; }
+          me.moving = false; return;
+        }
+        return;
       }
-    };
-    if (b.style === 'bank') {
-      onFace(s, b, 'L', (len) => { win(len, 20, 52, 4, true); s.fillStyle = b.roofEdge; s.fillRect(0, H - 14, len, 14); });
-      onFace(s, b, 'R', (len) => { win(len, 20, 52, 3); s.fillStyle = b.roofEdge; s.fillRect(0, H - 14, len, 14); });
-    } else if (b.style === 'exchange') {
-      onFace(s, b, 'L', (len) => {
-        s.fillStyle = '#E4DCCB'; s.fillRect(0, 0, len, 10);
-        for (let i = 0; i < 7; i++) { const u = 22 + i * ((len - 44) / 6); if (Math.abs(u - len / 2) < 30) continue; s.fillStyle = '#FFFFFF'; s.fillRect(u - 6, 10, 12, H - 34); s.fillStyle = 'rgba(36,49,58,.08)'; s.fillRect(u + 2, 10, 4, H - 34); }
-        s.fillStyle = b.roofEdge; s.fillRect(0, H - 24, len, 24);
-      });
-      onFace(s, b, 'R', (len) => { win(len, 24, 64, 4); s.fillStyle = b.roofEdge; s.fillRect(0, H - 24, len, 24); });
-    } else if (b.style === 'tower') {
-      onFace(s, b, 'L', (len) => {
-        s.fillStyle = '#FFFDF8'; s.beginPath(); s.arc(len / 2, H - 42, 24, 0, Math.PI * 2); s.fill();
-        s.strokeStyle = C.ink; s.lineWidth = 2.5; s.stroke();
-        s.beginPath(); s.moveTo(len / 2, H - 42); s.lineTo(len / 2, H - 26); s.moveTo(len / 2, H - 42); s.lineTo(len / 2 + 11, H - 46); s.stroke();
-        win(len, 60, 90, 2);
-      });
-      onFace(s, b, 'R', (len) => { win(len, 60, 90, 2); win(len, 105, 125, 2); });
-    } else if (b.style === 'shop') {
-      onFace(s, b, 'L', (len) => { s.fillStyle = C.window; s.fillRect(14, 12, Math.max(20, len - 90), 24); s.fillStyle = b.roof; s.fillRect(0, 40, len, 8); });
-      onFace(s, b, 'R', (len) => {
-        if (b.side === 'right') { s.fillStyle = C.window; s.fillRect(12, 12, 30, 24); s.fillRect(len - 42, 12, 30, 24); }
-        s.fillStyle = b.roof; s.fillRect(0, 40, len, 8);
-      });
-    } else if (b.style === 'factory') {
-      onFace(s, b, 'L', (len) => win(len, 18, 40, 2));
-      onFace(s, b, 'R', (len) => win(len, 18, 40, 3));
+      dx = ex / d; dy = ey / d;
     }
-    // door
-    if (b.enter) {
-      const face = b.side === 'right' ? 'R' : 'L';
-      onFace(s, b, face, (len) => {
-        s.fillStyle = C.door; s.beginPath(); s.roundRect(len / 2 - 14, 0, 28, 40, [0, 0, 12, 12]); s.fill();
-        s.fillStyle = '#D2A03C'; s.beginPath(); s.arc(len / 2 + 8, 20, 2, 0, Math.PI * 2); s.fill();
-      });
-    }
-    // roof
-    if (b.style === 'tower') {
-      poly(s, [A, B, Cc, D], b.roofEdge);
-      const apex = P(b.x + b.w / 2, b.y + b.h / 2, H + 55);
-      poly(s, [D, Cc, apex], b.roof, 'rgba(36,49,58,.25)');
-      poly(s, [Cc, B, apex], b.roofEdge, 'rgba(36,49,58,.25)');
-    } else if (b.style === 'factory') {
-      poly(s, [A, B, Cc, D], b.roofEdge);
-      const [cx, cy] = P(b.x + b.w * 0.6, b.y + b.h * 0.3, H);
-      s.fillStyle = '#B9AE9A'; s.fillRect(cx - 7, cy - 40, 14, 40);
-      s.fillStyle = 'rgba(255,255,255,.7)'; s.beginPath(); s.arc(cx + 4, cy - 50, 8, 0, Math.PI * 2); s.arc(cx + 14, cy - 58, 6, 0, Math.PI * 2); s.fill();
-    } else {
-      poly(s, [A, B, Cc, D], b.roof, 'rgba(36,49,58,.25)');
-      const ins = 8; // parapet inset
-      poly(s, rectPts(b.x + ins, b.y + ins, b.w - ins * 2, b.h - ins * 2, H), b.roofEdge);
-      if (b.style === 'bank' || b.style === 'exchange') { // a little rooftop unit
-        const ux = b.x + b.w * 0.25, uy = b.y + b.h * 0.3;
-        box(s, ux, uy, 30, 24, H, 14, '#E4DCCB', '#CFC5B2', '#F1E9DA');
+    const len = Math.hypot(dx, dy);
+    me.moving = len > 0;
+    if (!len) return;
+    dx /= len; dy /= len;
+    me.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
+    me.anim += dt * 8;
+    moveBy(dx * SPEED * dt, dy * SPEED * dt);
+  }
+
+  // Breadth-first search over tiles for tap-to-walk.
+  function findPath(fx, fy, tx, ty) {
+    if (isSolid(tx, ty)) return null;
+    const prev = new Map([[`${fx},${fy}`, null]]);
+    const queue = [[fx, fy]];
+    while (queue.length) {
+      const [x, y] = queue.shift();
+      if (x === tx && y === ty) {
+        const out = []; let k = `${x},${y}`;
+        while (k) { out.unshift(k.split(',').map(Number)); k = prev.get(k); }
+        return out.slice(1);
+      }
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        const key = `${nx},${ny}`;
+        if (prev.has(key) || isSolid(nx, ny)) continue;
+        prev.set(key, `${x},${y}`); queue.push([nx, ny]);
       }
     }
+    return null;
   }
-  function box(s, x, y, w, h, z0, H, wall, wallR, top) {
-    poly(s, [P(x, y + h, z0), P(x + w, y + h, z0), P(x + w, y + h, z0 + H), P(x, y + h, z0 + H)], wall);
-    poly(s, [P(x + w, y, z0), P(x + w, y + h, z0), P(x + w, y + h, z0 + H), P(x + w, y, z0 + H)], wallR);
-    poly(s, rectPts(x, y, w, h, z0 + H), top);
-  }
-
-  function drawTree(s, x, y, kind) {
-    onGround(s, x + 6, y + 6, () => { s.fillStyle = C.shadow; s.beginPath(); s.ellipse(0, 0, 14, 14, 0, 0, Math.PI * 2); s.fill(); });
-    const [px, py] = P(x, y);
-    s.fillStyle = C.trunk; s.fillRect(px - 2.5, py - 14, 5, 14);
-    if (kind === 'pine') {
-      for (const [w, top, col] of [[18, 46, C.treeB], [14, 60, C.treeA]]) {
-        s.fillStyle = col; s.beginPath(); s.moveTo(px - w, py - 10 - (top - 46) * 0.4); s.lineTo(px + w, py - 10 - (top - 46) * 0.4); s.lineTo(px, py - top); s.closePath(); s.fill();
-      }
-    } else {
-      s.fillStyle = C.treeA; s.beginPath(); s.arc(px, py - 26, 15, 0, Math.PI * 2); s.fill();
-      s.fillStyle = C.treeC; s.beginPath(); s.arc(px - 5, py - 31, 7, 0, Math.PI * 2); s.fill();
-    }
-  }
-
-  function drawPlayer(s) {
-    const bob = me.moving ? Math.abs(Math.sin(me.bob)) * 3 : 0;
-    onGround(s, me.x, me.y, () => { s.fillStyle = 'rgba(36,49,58,.22)'; s.beginPath(); s.ellipse(0, 0, 11, 11, 0, 0, Math.PI * 2); s.fill(); });
-    const [px, py] = P(me.x, me.y);
-    s.fillStyle = color; s.strokeStyle = C.ink; s.lineWidth = 1.5;
-    s.beginPath(); s.roundRect(px - 8, py - 26 - bob, 16, 24, [7, 7, 4, 4]); s.fill(); s.stroke();
-    s.fillStyle = '#F1E0CC'; s.beginPath(); s.arc(px, py - 33 - bob, 7, 0, Math.PI * 2); s.fill(); s.stroke();
-  }
-
-  function drawLabel(s, b, t) {
-    const [px, py] = P(b.x + b.w / 2, b.y + b.h / 2, b.H + (b.style === 'tower' ? 70 : 26));
-    const active = guide === b.id;
-    const fs = 13 / k;
-    s.font = `600 ${fs}px "Space Grotesk", system-ui, sans-serif`;
-    const tw = s.measureText(b.label).width;
-    const padX = fs * 0.8, h = fs * 2, w = tw + padX * 2 + fs * 0.9;
-    const lift = active ? Math.sin(t / 250) * 3 : 0;
-    s.fillStyle = 'rgba(36,49,58,.12)'; s.beginPath(); s.roundRect(px - w / 2, py - h + 3 - lift, w, h, h / 2); s.fill();
-    s.fillStyle = active ? C.ink : '#FFFDF8'; s.beginPath(); s.roundRect(px - w / 2, py - h - lift, w, h, h / 2); s.fill();
-    s.fillStyle = b.dot; s.beginPath(); s.arc(px - w / 2 + padX + fs * 0.2, py - h / 2 - lift, fs * 0.28, 0, Math.PI * 2); s.fill();
-    s.fillStyle = active ? '#FFFDF8' : C.ink; s.textAlign = 'left'; s.textBaseline = 'middle';
-    s.fillText(b.label, px - w / 2 + padX + fs * 0.75, py - h / 2 - lift + 1);
+  function walkToTile(tx, ty, building = null) {
+    const p = findPath(Math.floor(me.x / T), Math.floor((me.y - 2) / T), tx, ty);
+    if (!p) return;
+    path = p.length ? p : null; pathBuilding = building;
+    if (!path && building) enter(building);
   }
 
   function draw(t) {
-    const dpr = window.devicePixelRatio || 1;
+    lg.drawImage(scenery, 0, 0);
+    // depth-sort trees and the player by their bottom edge
+    const items = TREES.map(([x, y]) => ({ y: y * T + 15, fn: () => drawTree(lg, x, y) }));
+    items.push({ y: me.y, fn: () => drawPlayer(lg, me.x, me.y, me.dir, me.moving ? Math.floor(me.anim) % 2 : 0, color) });
+    items.sort((a, b) => a.y - b.y).forEach((it) => it.fn());
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = C.bg; g.fillRect(0, 0, canvas.width, canvas.height);
-    g.drawImage(staticLayer, 0, 0);
-    g.setTransform(dpr * k, 0, 0, dpr * k, dpr * ox, dpr * oy);
-
-    // guide ring at the target door
-    if (guide) {
-      const b = BUILDINGS.find((x) => x.id === guide);
-      const sp = doorSpot(b);
-      const p = (t % 1600) / 1600;
-      onGround(g, sp.x, sp.y, () => {
-        g.strokeStyle = `rgba(47,107,79,${0.7 * (1 - p)})`; g.lineWidth = 3;
-        g.beginPath(); g.arc(0, 0, 14 + p * 22, 0, Math.PI * 2); g.stroke();
-        g.fillStyle = 'rgba(47,107,79,.18)'; g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.fill();
-      });
-    }
-    if (target) {
-      onGround(g, target.x, target.y, () => { g.strokeStyle = 'rgba(36,49,58,.45)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 12, 0, Math.PI * 2); g.stroke(); });
-    }
-    // depth-sorted scene: things further "back" draw first.
-    // A building covers the player only when the player stands behind it (not past either front wall).
-    const pd = me.x + me.y;
-    const items = [];
-    for (const b of BUILDINGS) items.push({ d: b.x + b.w + b.y + b.h, fn: () => drawBuilding(g, b), front: !(me.x >= b.x + b.w || me.y >= b.y + b.h) });
-    for (const [x, y, kind] of TREES) items.push({ d: x + y, fn: () => drawTree(g, x, y, kind), front: x + y > pd });
-    items.sort((a, b) => a.d - b.d);
-    items.filter((it) => !it.front).forEach((it) => it.fn());
-    drawPlayer(g);
-    items.filter((it) => it.front).forEach((it) => it.fn());
-    for (const b of BUILDINGS) if (b.enter) drawLabel(g, b, t);
+    g.imageSmoothingEnabled = false;
+    g.drawImage(low, 0, 0, canvas.width, canvas.height);
+    drawSigns(t);
   }
 
-  // ---------- movement (unchanged world logic) ----------
-  function step(dt) {
-    let dx = 0, dy = 0;
-    // screen directions -> world directions on the tilted map
-    if (keys.has('up')) { dx -= 1; dy -= 1; }
-    if (keys.has('down')) { dx += 1; dy += 1; }
-    if (keys.has('left')) { dx -= 1; dy += 1; }
-    if (keys.has('right')) { dx += 1; dy -= 1; }
-    if (dx || dy) { target = null; targetBuilding = null; }
-    else if (target) {
-      const tx = target.x - me.x, ty = target.y - me.y, d = Math.hypot(tx, ty);
-      if (d < 4) {
-        target = null; me.moving = false;
-        if (targetBuilding) { const b = targetBuilding; targetBuilding = null; lastDoor = null; enter(b); return; }
-      } else { dx = tx / d; dy = ty / d; }
-    }
-    const len = Math.hypot(dx, dy);
-    me.moving = !!len;
-    if (!len) return;
-    dx /= len; dy /= len;
-    const dist = SPEED * dt;
-    const nx = me.x + dx * dist, ny = me.y + dy * dist;
-    if (!solid(nx, ny)) { me.x = nx; me.y = ny; }
-    else if (!solid(nx, me.y)) me.x = nx;
-    else if (!solid(me.x, ny)) me.y = ny;
-    else if (target) { target = null; targetBuilding = null; }
-    me.bob += dt * 12;
-    checkDoors();
-  }
-
-  function checkDoors() {
+  function drawSigns(t) {
+    g.font = `${8.4 * S}px "Jersey 10", monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
     for (const b of BUILDINGS) {
-      const d = doorRect(b);
-      if (!d) continue;
-      const pad = R + 8;
-      const px = b.side === 'right' ? pad : 4, py = b.side === 'right' ? 4 : pad;
-      const inside = me.x > d.x - px && me.x < d.x + d.w + px && me.y > d.y - py && me.y < d.y + d.h + py;
-      if (inside && lastDoor !== b.id) return enter(b);
-      if (!inside && lastDoor === b.id) lastDoor = null;
+      if (!b.label) continue;
+      const fx = (b.door * T + 8) * S, fy = ((b.y + b.h) * T - 20) * S;
+      const w = g.measureText(b.label).width + 6 * S, h = 10 * S;
+      const x = fx - w / 2, y = fy - h - 2 * S;
+      g.fillStyle = OUTLINE; g.fillRect(x - S, y - S, w + 2 * S, h + 2 * S);
+      g.fillStyle = guide === b.id ? '#F2D45C' : '#FBF6EA'; g.fillRect(x, y, w, h);
+      g.fillStyle = OUTLINE; g.fillText(b.label, fx, y + h / 2 + 0.4 * S);
+      if (guide === b.id) { // bouncing arrow above the sign
+        const bob = Math.round(Math.sin(t / 180) * 2) * S;
+        const ay = y - 4 * S + bob, aw = 5 * S;
+        g.beginPath(); g.moveTo(fx - aw, ay - 6 * S); g.lineTo(fx + aw, ay - 6 * S); g.lineTo(fx, ay); g.closePath();
+        g.fillStyle = '#F2D45C'; g.fill(); g.lineWidth = S; g.strokeStyle = OUTLINE; g.stroke();
+      }
     }
-  }
-
-  function enter(b) {
-    lastDoor = b.id;
-    const sp = doorSpot(b);
-    me.x = sp.x; me.y = sp.y; me.moving = false;
-    keys.clear(); target = null;
-    onEnter(b.id);
   }
 
   function loop(t) {
@@ -371,19 +304,11 @@ export function createTown(canvas, { color = '#C4613F', onEnter = () => {} } = {
   canvas.addEventListener('pointerdown', (e) => {
     if (paused) return;
     const r = canvas.getBoundingClientRect();
-    const sx = e.clientX - r.left, sy = e.clientY - r.top;
-    // tapped a building (its walls or roof)? walk to its door
-    const hit = BUILDINGS.filter((b) => b.enter).find((b) => {
-      for (let z = 0; z <= b.H + 30; z += 10) {
-        const w = toWorld(sx, sy + z * k);
-        if (w.x > b.x && w.x < b.x + b.w && w.y > b.y && w.y < b.y + b.h) return true;
-      }
-      return false;
-    });
-    if (hit) { target = doorSpot(hit); targetBuilding = hit; return; }
-    const w = toWorld(sx, sy);
-    target = { x: Math.max(R, Math.min(WORLD.w - R, w.x)), y: Math.max(R, Math.min(WORLD.h - R, w.y)) };
-    targetBuilding = null;
+    const mx = (e.clientX - r.left) / r.width * W, my = (e.clientY - r.top) / r.height * H;
+    const tx = Math.floor(mx / T), ty = Math.floor(my / T);
+    const b = BUILDINGS.find((q) => q.enter && tx >= q.x && tx < q.x + q.w && ty >= q.y && ty < q.y + q.h);
+    if (b) walkToTile(b.door, b.y + b.h, b);
+    else walkToTile(tx, ty);
   });
 
   window.addEventListener('resize', resize);
@@ -392,11 +317,12 @@ export function createTown(canvas, { color = '#C4613F', onEnter = () => {} } = {
   document.fonts?.ready.then(resize);
 
   return {
-    pause() { paused = true; keys.clear(); target = null; me.moving = false; },
+    pause() { paused = true; keys.clear(); path = null; me.moving = false; },
     resume() { paused = false; last = performance.now(); },
     setColor(c) { color = c; },
     setGuide(id) { guide = id; },
     resize,
-    walkTo(id) { const b = BUILDINGS.find((q) => q.id === id); target = doorSpot(b); targetBuilding = b; },
+    walkTo(id) { const b = BUILDINGS.find((q) => q.id === id); walkToTile(b.door, b.y + b.h, b); },
+    pos() { return { x: me.x, y: me.y }; }, // used by automated tests
   };
 }

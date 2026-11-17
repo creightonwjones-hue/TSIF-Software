@@ -1,12 +1,11 @@
 import * as E from '../engine.js';
 import { SCENARIOS, SETTINGS } from '../scenarios.js';
 import { h, money, sound } from '../ui.js';
-import { icon } from '../icons.js';
 
 // Player colors (the little figure that walks around town)
 const COLORS = [
-  ['#C4613F', 'Terracotta'], ['#2F6B4F', 'Forest'], ['#5B7C99', 'Harbor'], ['#D2A03C', 'Mustard'],
-  ['#8C6BB1', 'Plum'], ['#2E8C8C', 'Teal'], ['#3D4A52', 'Slate'], ['#C97B9A', 'Rose'],
+  ['#3E7AB8', 'Blue'], ['#C8503E', 'Red'], ['#3F8A4F', 'Green'], ['#E0A62E', 'Gold'],
+  ['#8C6BB1', 'Purple'], ['#2E8C8C', 'Teal'], ['#3D4A5A', 'Slate'], ['#D47AA0', 'Pink'],
 ];
 
 export function showStart(app) {
@@ -57,9 +56,9 @@ export function showStart(app) {
         h('p', { class: 'tagline' }, `Start with ${money(SETTINGS.startingCash)}. You have ${SETTINGS.years} years to grow it.`)),
       resume,
       h('div', { class: 'field' }, h('label', { for: 'nickname' }, 'Nickname'), nameInput, warn),
-      h('div', { class: 'field' }, h('label', {}, 'Your color'), colorRow),
+      h('div', { class: 'field' }, h('label', {}, 'Shirt color'), colorRow),
       h('div', { class: 'field' }, h('label', { for: 'scenario' }, 'Game ', h('small', {}, '— your club leader will tell you which')), scenarioSelect),
-      h('button', { class: 'btn primary big', type: 'button', id: 'start-btn', onclick: go }, 'Start game', icon('next', 18))),
+      h('button', { class: 'btn primary big', type: 'button', id: 'start-btn', onclick: go }, 'Start game ▶')),
   });
   nameInput.focus();
 }
