@@ -141,7 +141,8 @@ const earned = (g) => Object.fromEntries(E.computeAwards(g).map((a) => [a.id, a.
 test('awards: diversified + patient player earns the good-habit awards', () => {
   for (const id of ids) {
     const a = earned(play(id, strategies.diversifiedPatient));
-    assert.deepEqual(a, { diversified: true, steady: true, saver: true, rumor: true, debtFree: true, founder: false }, `scenario ${id}`);
+    for (const k of ['diversified', 'steady', 'saver', 'rumor', 'debtFree']) assert.equal(a[k], true, `scenario ${id}: ${k}`);
+    assert.equal(a.founder, false, `scenario ${id}: never ran the lemonade stand`);
   }
 });
 

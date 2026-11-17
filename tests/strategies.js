@@ -4,10 +4,12 @@ import { STOCKS } from '../js/scenarios.js';
 
 export function play(scenarioId, strategy) {
   const g = E.createGame(scenarioId);
-  while (!g.finished) { strategy(g); E.advanceYear(g); }
+  while (!g.finished) { E.applyEvent(g); strategy(g); E.advanceYear(g); }
   return g;
 }
 const all = (g, id) => Math.floor(g.cash / E.stockPrice(g, id));
+const VALUE = { gold: 3, silver: 2, coal: 1, dirt: 0 };
+export const bestPicks = (g) => E.mineLayout(g).map((k, i) => [VALUE[k], i]).sort((a, b) => b[0] - a[0]).slice(0, 10).map(([, i]) => i);
 export const strategies = {
   diversifiedPatient: (g) => {
     if (g.year === 1) { E.deposit(g, 200); E.buyBond(g, 'city', 2); }
@@ -19,6 +21,15 @@ export const strategies = {
   businessOnly: (g) => {
     if (g.year === 1) for (const id of ['recipe', 'stand', 'helper']) E.buyUpgrade(g, id);
     E.runShift(g, 999);
+  },
+  workerOnly: (g) => {
+    if (g.year === 1) for (const id of ['recipe', 'stand', 'helper']) E.buyUpgrade(g, id);
+    E.runShift(g, 999); E.runMine(g, bestPicks(g));
+  },
+  workAndInvest: (g) => {
+    if (g.year === 1) { for (const id of ['recipe', 'stand', 'helper']) E.buyUpgrade(g, id); E.deposit(g, 150); E.buyBond(g, 'city', 1); }
+    E.runShift(g, 999); E.runMine(g, bestPicks(g));
+    const q = all(g, 'basket'); if (q > 0) E.buy(g, 'basket', q);
   },
   businessAndInvest: (g) => {
     if (g.year === 1) { for (const id of ['recipe', 'stand', 'helper']) E.buyUpgrade(g, id); E.deposit(g, 100); E.buyBond(g, 'city', 1); }
