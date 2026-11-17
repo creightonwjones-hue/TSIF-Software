@@ -113,51 +113,64 @@ export function createTown(canvas, { avatar = '🦊', onEnter = () => {} } = {})
     s.fillStyle = 'rgba(43,45,66,.18)'; rrect(s, b.x + 6, b.y + 10, b.w, b.h, 14); s.fill();
     // body
     s.fillStyle = b.color; rrect(s, b.x, b.y, b.w, b.h, 14); s.fill(); outline(s);
-    // roof band
-    const roofH = b.tower ? 46 : 38;
+    // Sign band: on top for buildings whose door is at the bottom,
+    // and at the bottom for buildings whose door faces up toward the road.
+    const top = b.side !== 'top';
+    const roofH = b.tower ? 44 : 38;
+    const bandY = top ? b.y : b.y + b.h - roofH;
     s.save(); rrect(s, b.x, b.y, b.w, b.h, 14); s.clip();
-    s.fillStyle = b.roof; s.fillRect(b.x, b.y, b.w, roofH);
+    s.fillStyle = b.roof; s.fillRect(b.x, bandY, b.w, roofH);
     if (b.awning) {
-      for (let i = 0; i < b.w; i += 24) { s.fillStyle = (i / 24) % 2 ? C.white : b.roof; s.fillRect(b.x + i, b.y, 24, roofH); }
+      for (let i = 0; i < b.w; i += 24) { s.fillStyle = (i / 24) % 2 ? C.white : b.roof; s.fillRect(b.x + i, bandY, 24, roofH); }
     }
     s.restore();
-    s.beginPath(); s.moveTo(b.x, b.y + roofH); s.lineTo(b.x + b.w, b.y + roofH); outline(s, 3);
-    // sign
-    s.font = `800 ${b.w >= 170 ? 17 : 13}px Fredoka, "Trebuchet MS", sans-serif`;
+    const lineY = top ? b.y + roofH : bandY;
+    s.beginPath(); s.moveTo(b.x, lineY); s.lineTo(b.x + b.w, lineY); outline(s, 3);
+    s.font = `700 ${b.w >= 170 ? 17 : 13}px Fredoka, "Trebuchet MS", sans-serif`;
     s.textAlign = 'center'; s.textBaseline = 'middle';
-    s.fillStyle = C.navy; s.fillText(b.name, b.x + b.w / 2, b.y + roofH / 2 + 1);
-    // emoji
-    s.font = `${b.enter ? 48 : 36}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
-    const ey = b.side === 'top' ? b.y + b.h - 34 : b.y + roofH + (b.h - roofH) / 2 - (b.enter ? 14 : 0);
+    if (b.awning) { // readable label on the stripes
+      const tw = s.measureText(b.name).width + 18;
+      s.fillStyle = C.white; rrect(s, b.x + b.w / 2 - tw / 2, bandY + 7, tw, roofH - 14, 8); s.fill(); outline(s, 2.5);
+    }
+    s.fillStyle = C.navy; s.fillText(b.name, b.x + b.w / 2, bandY + roofH / 2 + 1);
+
+    // free area for the picture (between the door and the sign band)
+    const doorH = 40;
+    const areaTop = top ? b.y + roofH : b.y + (b.enter ? doorH : 0);
+    const areaBot = top ? b.y + b.h - (b.enter ? doorH : 0) : bandY;
+    const midY = (areaTop + areaBot) / 2;
+    const cx = b.x + b.w / 2;
     if (b.tower) { // clock face
-      s.fillStyle = C.white; s.beginPath(); s.arc(b.x + b.w / 2, b.y + 92, 30, 0, Math.PI * 2); s.fill(); outline(s, 3);
-      s.beginPath(); s.moveTo(b.x + b.w / 2, b.y + 92); s.lineTo(b.x + b.w / 2, b.y + 70);
-      s.moveTo(b.x + b.w / 2, b.y + 92); s.lineTo(b.x + b.w / 2 + 15, b.y + 98); outline(s, 4);
+      const r = Math.min(30, (areaBot - areaTop) / 2 - 6);
+      s.fillStyle = C.white; s.beginPath(); s.arc(cx, midY, r, 0, Math.PI * 2); s.fill(); outline(s, 3);
+      s.beginPath(); s.moveTo(cx, midY); s.lineTo(cx, midY - r * 0.7);
+      s.moveTo(cx, midY); s.lineTo(cx + r * 0.5, midY + r * 0.2); outline(s, 4);
     } else {
-      s.fillText(b.emoji, b.x + b.w / 2, ey);
+      const size = Math.min(b.enter ? 48 : 38, areaBot - areaTop - 8);
+      s.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      s.fillText(b.emoji, cx, midY + 2);
     }
     if (b.columns) {
       for (let i = 0; i < 6; i++) {
-        const cx = b.x + 28 + i * ((b.w - 56) / 5);
-        s.fillStyle = C.white; rrect(s, cx - 7, b.y + b.h - 70, 14, 52, 4); s.fill(); outline(s, 2.5);
+        const px = b.x + 28 + i * ((b.w - 56) / 5);
+        if (Math.abs(px - cx) < 30) continue; // leave room for the door
+        s.fillStyle = C.white; rrect(s, px - 7, b.y + b.h - 70, 14, 52, 4); s.fill(); outline(s, 2.5);
       }
     }
-    // windows for the bank
     if (b.id === 'bank') {
       for (const wx of [b.x + 30, b.x + b.w - 70]) { s.fillStyle = C.sky; rrect(s, wx, b.y + b.h - 70, 40, 34, 6); s.fill(); outline(s, 3); }
     }
     // door
-    const d = doorRect(b);
-    if (d) {
-      const dx = b.x + b.w / 2 - 22, dh = 40;
-      const dy = b.side === 'bottom' ? b.y + b.h - dh : b.y + roofH + 6;
-      if (b.side === 'top') {
-        // top-door buildings: draw a doormat at the top edge so it's clear where to walk in
-        s.fillStyle = '#A1887F'; rrect(s, dx - 4, b.y - 12, 52, 16, 6); s.fill(); outline(s, 3);
-        s.fillStyle = '#795548'; rrect(s, dx, dy, 44, dh - 6, [10, 10, 0, 0]); s.fill(); outline(s, 3);
-      } else {
-        s.fillStyle = '#795548'; rrect(s, dx, dy, 44, dh, [12, 12, 0, 0]); s.fill(); outline(s, 3);
+    if (b.enter) {
+      const dx = cx - 22;
+      if (top) {
+        const dy = b.y + b.h - doorH;
+        s.fillStyle = '#795548'; rrect(s, dx, dy, 44, doorH, [12, 12, 0, 0]); s.fill(); outline(s, 3);
         s.fillStyle = C.yellow; s.beginPath(); s.arc(dx + 34, dy + 22, 3.5, 0, Math.PI * 2); s.fill();
+      } else {
+        s.fillStyle = '#795548'; rrect(s, dx, b.y, 44, doorH - 4, [0, 0, 12, 12]); s.fill(); outline(s, 3);
+        s.fillStyle = C.yellow; s.beginPath(); s.arc(dx + 34, b.y + 16, 3.5, 0, Math.PI * 2); s.fill();
+        s.fillStyle = '#A1887F'; rrect(s, dx - 4, b.y - 12, 52, 12, 5); s.fill(); outline(s, 3);
       }
     }
   }

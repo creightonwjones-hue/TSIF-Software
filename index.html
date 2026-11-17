@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sprout City</title>
+  <meta name="description" content="Sprout City: an investing game for kids. Grow $1,000 over 10 years with stocks, bonds, and savings.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="hud" aria-live="polite"></header>
+  <main id="game">
+    <div id="town-wrap"><canvas id="town" aria-label="Sprout City town map. Use arrow keys or tap to walk."></canvas></div>
+    <div id="tutorial" role="status"></div>
+  </main>
+  <div id="overlay" class="overlay" role="dialog" aria-modal="true"></div>
+  <div id="toasts" aria-live="polite"></div>
+  <noscript><p style="padding:2rem;font-size:1.4rem">Sprout City needs JavaScript turned on to play.</p></noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
