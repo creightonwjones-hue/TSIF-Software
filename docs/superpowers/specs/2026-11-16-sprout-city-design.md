@@ -153,3 +153,8 @@ The user liked the main-street pixel design but found it bland and said the lemo
 - Each building screen has an animated pixel scene (`js/scenes.js`); the lemonade shift serves customers in an animated scene.
 - Polish: the top bar's numbers roll, prices flash on a new year, the recap reveals step by step, fireworks on the final score, and optional chiptune music (off by default).
 - Respects `prefers-reduced-motion`.
+
+## Update 2026-11-18 (later still): real architecture, natural edges, and spotting yourself
+- Bank and Stock Exchange are classical stone buildings (flat roofs, pediments, columns, steps). The Exchange has flags, a rooftop price ticker and a bronze bull statue; the News Stand is a green newspaper kiosk with magazine racks and a sandwich board.
+- The ring of trees is gone: Main Street runs off both edges, the cross street crosses a creek on a footbridge, and the edges have tree clusters, rocks, bushes, a picket fence and a wildflower meadow.
+- Your character has a yellow name tag and a glowing ring at their feet; townsfolk wear muted colors.

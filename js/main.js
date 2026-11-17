@@ -93,7 +93,7 @@ export const app = {
       return { t: st.ticker, p: money(p), c: i === 0 ? 'NEW' : c === 0 ? '0%' : `${c > 0 ? '▲' : '▼'}${Math.abs(c)}%`, up: i > 0 && c > 0, down: c < 0 };
     });
     const biz = E.ensureBiz(s);
-    this.town.setWorld({ season, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
+    this.town.setWorld({ name: s.nickname, season, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
       recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker });
   },
 
