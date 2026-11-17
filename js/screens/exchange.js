@@ -1,190 +1,142 @@
-// Stock Exchange: a clean read-only list. Tap a row to open one trade card with Buy / Sell.
+// Stock Exchange side panel: a clean list; tapping a row opens a detail view (with a back arrow) to trade.
 import * as E from '../engine.js';
 import { STOCKS, BONDS } from '../scenarios.js';
-import { h, money, changeTag, sparkline, riskMeter, amountPicker, toast, sound } from '../ui.js';
+import { h, money, pct, amountPicker, toast, sound, lineChart } from '../ui.js';
+import { icon } from '../icons.js';
 
 let lastTab = 'stocks';
-const RISK_WORD = ['', 'Safe', 'Medium', 'Bumpy', 'Wild'];
+const RISK_WORD = ['', 'Low risk', 'Medium risk', 'Higher risk', 'High risk'];
+
+export function mono(item) {
+  return h('span', { class: 'mono', style: `--c:${item.color}` }, item.ticker.replace('-B', ''));
+}
+function change(c) {
+  if (c == null) return h('span', { class: 'chg flat' }, 'New');
+  const p = pct(c);
+  return h('span', { class: `chg ${p.cls}` }, p.text);
+}
+function riskBar(risk) {
+  return h('span', { class: 'riskbar', title: RISK_WORD[risk] },
+    h('span', { class: 'riskbar-track' }, ...[1, 2, 3, 4].map((n) => h('i', { class: n <= risk ? `on r${risk}` : '' }))),
+    h('small', {}, RISK_WORD[risk]));
+}
 
 export function exchangeScreen(app) {
   const s = app.state;
   const i = s.year - 1;
-  const list = h('div', { class: 'market-list' });
-  const summary = h('div', { class: 'market-summary' });
-  const tabs = h('div', { class: 'tabs', role: 'tablist' });
-  let rows = [];
+  const overlay = document.getElementById('overlay');
+  const view = h('div', { class: 'ex-view' });
+  let refreshView = () => {};
 
   const stockChange = (id) => (i > 0 ? E.stockPrice(s, id) / E.stockPrice(s, id, i - 1) - 1 : null);
+  const yearLabels = () => Array.from({ length: i + 1 }, (_, n) => (n === 0 ? 'Start' : `Y${n}`));
 
-  // ---------- list rows ----------
-  function ownedCell(n, unit) {
-    return n > 0
-      ? h('span', { class: 'owned-cell' }, h('b', {}, String(n)), h('small', {}, unit + (n === 1 ? '' : 's')))
-      : h('span', { class: 'owned-cell none' }, '—');
-  }
-
-  function stockRow(st) {
-    const row = h('button', { class: 'market-row', type: 'button', 'aria-label': `${st.name}, open trade card` });
-    const upd = () => {
-      const price = E.stockPrice(s, st.id), ch = stockChange(st.id), n = s.shares[st.id];
-      row.classList.toggle('mine', n > 0);
-      row.replaceChildren(
-        h('span', { class: 'cell-name' }, h('span', { class: 'row-emoji' }, st.emoji),
-          h('span', { class: 'name-stack' }, h('b', {}, st.name), h('small', { class: 'ticker' }, st.ticker))),
-        h('span', { class: `risk-chip r${st.risk}` }, RISK_WORD[st.risk]),
-        h('span', { class: 'cell-price' }, money(price)),
-        h('span', { class: 'cell-change' }, ch == null ? h('span', { class: 'chg flat' }, 'NEW') : changeTag(ch)),
-        ownedCell(n, 'share'),
-        h('span', { class: 'cell-go', 'aria-hidden': 'true' }, '›'));
-    };
-    row.addEventListener('click', () => { sound('click'); openTrade(stockCard(st)); });
-    upd();
-    return { row, upd };
-  }
-
-  function bondRow(b) {
-    const row = h('button', { class: 'market-row', type: 'button', 'aria-label': `${b.name}, open trade card` });
-    const upd = () => {
-      const dead = E.isDefaulted(s, b.id), n = s.bonds[b.id];
-      row.classList.toggle('mine', n > 0);
-      row.classList.toggle('dead', dead);
-      row.replaceChildren(
-        h('span', { class: 'cell-name' }, h('span', { class: 'row-emoji' }, b.emoji),
-          h('span', { class: 'name-stack' }, h('b', {}, b.name), h('small', { class: 'ticker' }, b.ticker))),
-        h('span', { class: `risk-chip r${b.risk}` }, b.risk > 2 ? 'Risky' : 'Safe'),
-        h('span', { class: 'cell-price' }, money(E.bondPrice(s, b.id))),
-        h('span', { class: 'cell-change' }, dead ? h('b', { class: 'down' }, 'DEFAULTED') : h('b', { class: 'up' }, `${Math.round(b.rate * 100)}% / yr`)),
-        ownedCell(n, 'bond'),
-        h('span', { class: 'cell-go', 'aria-hidden': 'true' }, '›'));
-    };
-    row.addEventListener('click', () => { sound('click'); openTrade(bondCard(b)); });
-    upd();
-    return { row, upd };
-  }
-
-  // ---------- trade card ----------
-  let card = null; // { el, upd }
-  function openTrade(c) {
-    closeTrade();
-    const layer = h('div', { class: 'trade-layer', onclick: (e) => { if (e.target === layer) closeTrade(); } }, c.el);
-    layer._close = closeTrade;
-    document.getElementById('overlay').append(layer);
-    card = { ...c, layer };
-    c.upd();
-    c.el.querySelector('.picker input')?.focus({ preventScroll: true });
-  }
-  function closeTrade() {
-    if (!card) return;
-    card.layer.remove();
-    card = null;
-  }
-
-  function cardShell({ emoji, name, ticker, risk, riskText, desc, statBlocks, chart, picker, buy, sell, buyDisabled }) {
-    const ownLine = h('p', { class: 'own-line' });
-    const cost = h('p', { class: 'cost-line' });
-    const el = h('div', { class: 'trade-card pop', role: 'dialog', 'aria-label': `Trade ${name}` },
-      h('button', { class: 'card-x', type: 'button', 'aria-label': 'Close', onclick: () => { sound('click'); closeTrade(); } }, '✕'),
-      h('div', { class: 'trade-head' },
-        h('span', { class: 'trade-emoji' }, emoji),
-        h('div', {}, h('h3', {}, name), h('small', { class: 'ticker' }, ticker)),
-        h('div', { class: 'trade-risk' }, riskText ? h('small', {}, riskText) : riskMeter(risk))),
-      h('p', { class: 'trade-desc' }, desc),
-      h('div', { class: 'trade-stats' }, ...statBlocks, chart ? h('div', { class: 'trade-chart' }, chart) : null),
-      ownLine,
-      h('div', { class: 'trade-controls' }, picker.el, cost),
-      h('div', { class: 'trade-buttons' },
-        h('button', { class: 'btn primary big', type: 'button', disabled: buyDisabled, onclick: buy }, 'BUY'),
-        h('button', { class: 'btn sell big', type: 'button', onclick: sell }, 'SELL')));
-    return { el, ownLine, cost };
-  }
-
-  function stockCard(st) {
-    const price = E.stockPrice(s, st.id), ch = stockChange(st.id);
-    const picker = amountPicker({ value: 1, label: `shares of ${st.name}`, onChange: () => upd(),
-      quick: [{ label: 'MAX', value: () => Math.max(1, Math.floor(s.cash / price)) }, { label: 'ALL MINE', value: () => Math.max(1, s.shares[st.id]) }] });
-    const shell = cardShell({
-      emoji: st.emoji, name: st.name, ticker: st.ticker, risk: st.risk, desc: st.desc, picker,
-      statBlocks: [
-        h('div', { class: 'stat-block' }, h('small', {}, 'PRICE'), h('b', {}, money(price))),
-        h('div', { class: 'stat-block' }, h('small', {}, 'LAST YEAR'), ch == null ? h('b', { class: 'chg flat' }, 'NEW') : changeTag(ch)),
-      ],
-      chart: i > 0 ? sparkline(s.stockPaths[st.id].slice(0, i + 1), 200, 56) : h('small', {}, 'Price chart starts after Year 1'),
-      buy: () => {
-        const q = picker.get();
-        if (app.act(E.buy(s, st.id, q))) {
-          toast(`✅ Bought ${q} ${st.ticker}`);
-          app.lessonOnce(st.index ? 'basket' : 'buy', st.index
-            ? 'An index fund owns a slice of every company. That\'s diversification — not all your eggs in one basket.'
-            : `A stock = you own part of the company. If ${st.name} grows, your shares are worth more.`);
-        }
-      },
-      sell: () => { const q = picker.get(); if (app.act(E.sell(s, st.id, q))) toast(`💰 Sold ${q} ${st.ticker}`); },
-    });
-    function upd() {
-      const n = s.shares[st.id];
-      shell.ownLine.replaceChildren('You own ', h('b', {}, `${n} share${n === 1 ? '' : 's'}`), n ? ` · worth ${money(E.round2(n * price))}` : '', ` · Cash ${money(s.cash)}`);
-      shell.cost.textContent = `${picker.get()} × ${money(price)} = ${money(E.round2(picker.get() * price))}`;
-    }
-    return { el: shell.el, upd };
-  }
-
-  function bondCard(b) {
-    const price = E.bondPrice(s, b.id), dead = E.isDefaulted(s, b.id);
-    const picker = amountPicker({ value: 1, label: `${b.name} bonds`, onChange: () => upd(),
-      quick: [{ label: 'MAX', value: () => Math.max(1, Math.floor(s.cash / price)) }, { label: 'ALL MINE', value: () => Math.max(1, s.bonds[b.id]) }] });
-    const shell = cardShell({
-      emoji: b.emoji, name: b.name, ticker: b.ticker, riskText: b.risk > 2 ? '⚠️ RISKY' : '🛡️ SAFE', desc: b.desc, picker,
-      buyDisabled: dead,
-      statBlocks: [
-        h('div', { class: 'stat-block' }, h('small', {}, 'PRICE'), h('b', {}, money(price))),
-        h('div', { class: 'stat-block' }, h('small', {}, 'PAYS YOU'),
-          dead ? h('b', { class: 'down' }, 'NOTHING — DEFAULTED') : h('b', { class: 'up' }, `${money(b.price * b.rate)} / yr per bond`)),
-      ],
-      buy: () => {
-        const q = picker.get();
-        if (app.act(E.buyBond(s, b.id, q))) {
-          toast(`✅ Bought ${q} ${b.name}${q === 1 ? '' : 's'}`);
-          app.lessonOnce('bond', 'A bond is a loan YOU make. You get paid interest every year, and you can sell it back later.');
-        }
-      },
-      sell: () => { const q = picker.get(); if (app.act(E.sellBond(s, b.id, q))) toast(`💰 Sold ${q} ${b.name}${q === 1 ? '' : 's'}`); },
-    });
-    function upd() {
-      const n = s.bonds[b.id];
-      shell.ownLine.replaceChildren('You own ', h('b', {}, `${n} bond${n === 1 ? '' : 's'}`), n ? ` · worth ${money(n * price)}` : '', ` · Cash ${money(s.cash)}`);
-      shell.cost.textContent = `${picker.get()} × ${money(price)} = ${money(picker.get() * price)}`;
-    }
-    return { el: shell.el, upd };
-  }
-
-  // ---------- tabs + list ----------
-  function render(tab) {
+  // ---------- list ----------
+  function showList(tab) {
     lastTab = tab;
-    closeTrade();
-    tabs.replaceChildren(...[['stocks', `STOCKS · ${STOCKS.length}`], ['bonds', `BONDS · ${BONDS.length}`]].map(([id, label]) =>
-      h('button', { class: `tab ${tab === id ? 'on' : ''}`, role: 'tab', 'aria-selected': tab === id ? 'true' : 'false', onclick: () => { sound('click'); render(id); } }, label)));
-    rows = tab === 'stocks' ? STOCKS.map(stockRow) : BONDS.map(bondRow);
-    list.replaceChildren(
-      tab === 'stocks'
-        ? h('p', { class: 'explain' }, h('b', {}, 'STOCK'), ' = you own part of a company. Prices move every year. Tap one to trade.')
-        : h('p', { class: 'explain' }, h('b', {}, 'BOND'), ' = you lend money and get paid interest every year. Safer than stocks, slower growth. Tap one to trade.'),
-      h('div', { class: 'list-head', 'aria-hidden': 'true' },
-        h('span', {}, tab === 'stocks' ? 'COMPANY' : 'BOND'), h('span', {}, 'RISK'), h('span', {}, 'PRICE'),
-        h('span', {}, tab === 'stocks' ? 'LAST YEAR' : 'PAYS'), h('span', {}, 'YOU OWN'), h('span', {})),
-      ...rows.map((r) => r.row));
+    overlay._back = null;
+    const seg = h('div', { class: 'seg', role: 'tablist' },
+      ...[['stocks', `Stocks`], ['bonds', `Bonds`]].map(([id, label]) =>
+        h('button', { class: tab === id ? 'on' : '', role: 'tab', 'aria-selected': tab === id ? 'true' : 'false',
+          onclick: () => { if (tab !== id) { sound('click'); showList(id); } } }, label)));
+    const summary = h('div', { class: 'ex-summary' });
+    const rowsBox = h('div', { class: 'ex-rows' });
+    const items = tab === 'stocks' ? STOCKS : BONDS;
+    const rows = items.map((it) => {
+      const row = h('button', { class: 'ex-row', type: 'button', onclick: () => { sound('click'); showDetail(tab, it); } });
+      const upd = () => {
+        const isStock = tab === 'stocks';
+        const n = isStock ? s.shares[it.id] : s.bonds[it.id];
+        const dead = !isStock && E.isDefaulted(s, it.id);
+        row.classList.toggle('mine', n > 0);
+        row.classList.toggle('dead', dead);
+        row.replaceChildren(
+          mono(it),
+          h('span', { class: 'ex-name' }, h('b', {}, it.name),
+            h('small', {}, n > 0 ? `You own ${n}` : isStock ? RISK_WORD[it.risk] : (it.risk > 2 ? 'Risky' : 'Safe'))),
+          h('span', { class: 'ex-price' },
+            h('b', {}, money(isStock ? E.stockPrice(s, it.id) : E.bondPrice(s, it.id))),
+            isStock ? change(stockChange(it.id))
+              : dead ? h('span', { class: 'chg down' }, 'Defaulted') : h('span', { class: 'chg up' }, `Pays ${Math.round(it.rate * 100)}%/yr`)),
+          icon('next', 16, 'ex-go'));
+      };
+      upd();
+      return { row, upd };
+    });
+    rowsBox.append(...rows.map((r) => r.row));
+    const updSummary = () => summary.replaceChildren(
+      h('div', {}, h('small', {}, 'Stocks'), h('b', {}, money(E.stockValue(s)))),
+      h('div', {}, h('small', {}, 'Bonds'), h('b', {}, money(E.bondValue(s)))),
+      h('div', {}, h('small', {}, 'Holdings'), h('b', {}, String(E.diversityCount(s)))));
     updSummary();
+    refreshView = () => { rows.forEach((r) => r.upd()); updSummary(); };
+    view.replaceChildren(
+      seg, summary,
+      h('p', { class: 'ex-explain' }, tab === 'stocks'
+        ? 'A stock means you own part of a company. Prices move every year.'
+        : 'A bond is a loan you make. It pays you interest every year — safer than stocks, but slower.'),
+      rowsBox);
+    view.classList.remove('slide-in'); void view.offsetWidth; view.classList.add('fade-in');
   }
-  function updSummary() {
-    summary.replaceChildren(
-      h('span', { class: 'pill' }, h('small', {}, 'STOCKS'), money(E.stockValue(s))),
-      h('span', { class: 'pill' }, h('small', {}, 'BONDS'), money(E.bondValue(s))),
-      h('span', { class: 'pill' }, h('small', {}, 'DIFFERENT INVESTMENTS'), String(E.diversityCount(s))));
-  }
-  app.screenRefresh = () => { rows.forEach((r) => r.upd()); updSummary(); card?.upd(); };
 
-  app.open({
-    title: 'Stock Exchange', emoji: '📈', theme: 'exchange',
-    body: h('div', { class: 'exchange' }, h('div', { class: 'exchange-top' }, tabs, summary), list),
-  });
-  render(lastTab);
+  // ---------- detail ----------
+  function showDetail(tab, it) {
+    const isStock = tab === 'stocks';
+    const price = isStock ? E.stockPrice(s, it.id) : E.bondPrice(s, it.id);
+    const dead = !isStock && E.isDefaulted(s, it.id);
+    const owned = () => (isStock ? s.shares[it.id] : s.bonds[it.id]);
+    const unit = isStock ? 'share' : 'bond';
+    const ownBox = h('div', { class: 'own-box' });
+    const cost = h('p', { class: 'cost-line' });
+    const picker = amountPicker({ value: 1, label: `number of ${unit}s`, onChange: () => upd(),
+      quick: [{ label: 'Max', value: () => Math.max(1, Math.floor(s.cash / price)) }, { label: 'All I own', value: () => Math.max(1, owned()) }] });
+    const buy = () => {
+      const q = picker.get();
+      const r = isStock ? E.buy(s, it.id, q) : E.buyBond(s, it.id, q);
+      if (app.act(r)) {
+        toast(`Bought ${q} ${it.ticker}`);
+        if (!isStock) app.lessonOnce('bond', 'A bond is a loan you make. You get paid interest every year, and you can sell it back later.');
+        else app.lessonOnce(it.index ? 'basket' : 'buy', it.index
+          ? 'An index fund owns a slice of every company. That\'s diversification — not all your eggs in one basket.'
+          : `A stock means you own part of the company. If ${it.name} grows, your shares are worth more.`);
+      }
+    };
+    const sell = () => {
+      const q = picker.get();
+      if (app.act(isStock ? E.sell(s, it.id, q) : E.sellBond(s, it.id, q))) toast(`Sold ${q} ${it.ticker}`);
+    };
+    function upd() {
+      const n = owned();
+      ownBox.replaceChildren(
+        h('div', {}, h('small', {}, 'You own'), h('b', {}, `${n} ${unit}${n === 1 ? '' : 's'}`)),
+        h('div', {}, h('small', {}, 'Worth'), h('b', {}, money(E.round2(n * price)))),
+        h('div', {}, h('small', {}, 'Your cash'), h('b', {}, money(s.cash))));
+      cost.replaceChildren(`${picker.get()} × ${money(price)} = `, h('b', {}, money(E.round2(picker.get() * price))));
+    }
+    overlay._back = () => { sound('click'); showList(tab); };
+    refreshView = upd;
+    view.replaceChildren(
+      h('button', { class: 'back-link', type: 'button', onclick: () => overlay._back() }, icon('back', 16), isStock ? 'All stocks' : 'All bonds'),
+      h('div', { class: 'detail-head' }, mono(it),
+        h('div', {}, h('h3', {}, it.name), h('small', {}, isStock ? riskBar(it.risk) : (it.risk > 2 ? 'Risky bond' : 'Safe bond')))),
+      h('div', { class: 'detail-price' },
+        h('b', {}, money(price)),
+        isStock ? change(stockChange(it.id)) : dead ? h('span', { class: 'chg down' }, 'Stopped paying') : h('span', { class: 'chg up' }, `Pays ${money(it.price * it.rate)} per bond each year`),
+        isStock && i > 0 ? h('small', {}, 'since last year') : null),
+      isStock ? lineChart(s.stockPaths[it.id].slice(0, i + 1), { labels: yearLabels() }) : null,
+      h('p', { class: 'detail-desc' }, it.desc),
+      ownBox,
+      h('div', { class: 'trade-box' },
+        h('label', { class: 'trade-label' }, `How many ${unit}s?`),
+        picker.el, cost,
+        h('div', { class: 'trade-buttons' },
+          h('button', { class: 'btn primary', type: 'button', disabled: dead, onclick: buy }, 'Buy'),
+          h('button', { class: 'btn danger', type: 'button', onclick: sell }, 'Sell'))));
+    upd();
+    view.classList.remove('fade-in'); void view.offsetWidth; view.classList.add('slide-in');
+  }
+
+  app.screenRefresh = () => refreshView();
+  app.open({ title: 'Stock Exchange', icon: 'exchange', theme: 'exchange', body: view });
+  showList(lastTab);
 }
