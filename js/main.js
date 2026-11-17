@@ -9,6 +9,8 @@ import { exchangeScreen } from './screens/exchange.js';
 import { newsScreen, yearNewsPopup } from './screens/news.js';
 import { homeScreen } from './screens/home.js';
 import { lemonadeScreen } from './screens/lemonade.js';
+import { mineScreen } from './screens/mine.js';
+import { eventCard } from './screens/event.js';
 import { endScreen } from './screens/end.js';
 
 const SAVE_KEY = 'sprout-city-save';
@@ -20,6 +22,7 @@ const TUTORIAL = [
   ['bank', 'Walk with the arrow keys or WASD (or tap the map). Start at the BANK.'],
   ['exchange', 'Next, visit the STOCK EXCHANGE to buy stocks and bonds.'],
   ['lemonade', 'Now run your LEMONADE stand to earn some money.'],
+  ['mine', 'Next, work a shift at the MINE and dig for ore.'],
   ['home', 'Done for the year? Walk HOME to sleep and start the next year.'],
 ];
 
@@ -146,6 +149,7 @@ export const app = {
     else if (id === 'exchange') exchangeScreen(this);
     else if (id === 'news') newsScreen(this);
     else if (id === 'lemonade') lemonadeScreen(this);
+    else if (id === 'mine') mineScreen(this);
     else if (id === 'home') homeScreen(this);
     if (TUTORIAL[this.tutorial]?.[0] === id && id !== 'home') this.setTutorial(this.tutorial + 1);
   },
@@ -161,6 +165,7 @@ export const app = {
 
   startGame(state, tutorial = 0, seen = []) {
     E.ensureBiz(state);
+    E.applyEvent(state); // this year's life event (only happens once per year)
     this.state = state;
     this.seenLessons = new Set(seen);
     document.body.classList.add('playing');
@@ -176,7 +181,17 @@ export const app = {
     yearNewsPopup(this);
   },
 
+  // After the year's news, show this year's life event card (once).
+  showEvent() {
+    const ev = this.state && !this.state.finished ? E.applyEvent(this.state) : null;
+    if (!ev || ev.shown) return;
+    ev.shown = true;
+    this.save();
+    eventCard(this, ev);
+  },
+
   nextYearStarted() {
+    E.applyEvent(this.state);
     this.refresh();
     if (this.state.finished) return endScreen(this); // the save is kept so a refresh still shows the results
     yearNewsPopup(this);

@@ -91,7 +91,7 @@ export function exchangeScreen(app) {
         h('div', {}, h('small', {}, 'Your cash'), money(s.cash)));
       cost.textContent = `= ${money(E.round2(picker.get() * price))}`;
     };
-    detailBox.replaceChildren(
+    detailBox.replaceChildren(...[
       h('div', { class: 'detail-head' }, tile(it, true),
         h('div', {}, h('h2', {}, it.name), h('small', {}, isStock ? RISK_WORD[it.risk] : it.risk > 2 ? 'Risky bond' : 'Safe bond'))),
       h('div', { class: 'bigprice' }, h('b', {}, money(price)),
@@ -103,7 +103,7 @@ export function exchangeScreen(app) {
       h('div', { class: 'stepper' }, picker.el, cost),
       h('div', { class: 'btns' },
         h('button', { class: 'btn primary', type: 'button', disabled: dead, onclick: buy }, 'Buy'),
-        h('button', { class: 'btn danger', type: 'button', onclick: sell }, 'Sell')));
+        h('button', { class: 'btn danger', type: 'button', onclick: sell }, 'Sell'))].filter(Boolean));
     detailUpd();
   }
 

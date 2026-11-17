@@ -158,3 +158,8 @@ The user liked the main-street pixel design but found it bland and said the lemo
 - Bank and Stock Exchange are classical stone buildings (flat roofs, pediments, columns, steps). The Exchange has flags, a rooftop price ticker and a bronze bull statue; the News Stand is a green newspaper kiosk with magazine racks and a sandwich board.
 - The ring of trees is gone: Main Street runs off both edges, the cross street crosses a creek on a footbridge, and the edges have tree clusters, rocks, bushes, a picket fence and a wildflower meadow.
 - Your character has a yellow name tag and a glowing ring at their feet; townsfolk wear muted colors.
+
+## Update 2026-11-18 (evening): life events and the Mine
+- **Life events** (`event: { text, amount }` per scenario year): money in, or bills paid from cash → savings → forced sale of stocks (biggest holding first) → bonds → emergency loan (allowed past the limit). Forced sales aren't counted as panic sells. Each game has a big bill in the year right after its crash. New achievement: **Rainy Day Ready**.
+- **The Mine** replaces the decorative factory: one shift a year, a 6×4 rock grid seeded per game and year, 10 swings; coal $1, silver $3, gold $6 (best shift ≈ $26). Ore rocks show specks; gold glints most.
+- **Balance with work + life events:** doing nothing ≈ $780–840; investing only ≈ $1,260–1,320; working only (stand + mine) ≈ $1,380–1,440; working + investing ≈ $1,930–1,970. Tests require working + investing to beat investing-only and to beat working-only by more than 15%.

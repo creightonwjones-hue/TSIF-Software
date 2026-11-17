@@ -8,10 +8,13 @@ Each kid starts with **$1,000** and has **10 years** to grow it. They walk aroun
 - **Bank**: put money in savings (safe, +3%/yr) or take out a loan (costs 8%/yr)
 - **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds
 - **Lemonade Stand**: run one shift a year and buy upgrades that grow the business
+- **Mine**: work a shift each year: 10 pickaxe swings to dig for coal, silver and gold
 - **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
 - **Home**: go to sleep to end the year and see what happened
 
-At the end, kids see their **final score** (net worth: show it to the club leader; the highest wins Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free, Business Owner.
+Each year can also bring a **life event**: surprise money (birthday gift, a contest prize) or a bill (vet visit, cracked phone). Bills come out of cash, then savings — and if that's not enough, the game sells your investments or takes out an emergency loan. That's the lesson behind keeping an emergency fund.
+
+At the end, kids see their **final score** (net worth: show it to the club leader; the highest wins Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free, Business Owner, Rainy Day Ready.
 
 ### Running it in class
 - Play link: **https://creightonwjones-hue.github.io/TSIF-Software/**
@@ -22,7 +25,7 @@ At the end, kids see their **final score** (net worth: show it to the club leade
 - No accounts, no data sent anywhere. Kids should use a nickname, not their full name.
 
 ### Editing the game (club members)
-Everything you'd want to change — company names, news headlines, how much the news moves prices, the lemonade stand's prices and upgrades — is in **`js/scenarios.js`**, with comments explaining each part.
+Everything you'd want to change — company names, news headlines, how much the news moves prices, the lemonade stand's prices and upgrades, life events, and what ore is worth in the mine — is in **`js/scenarios.js`**, with comments explaining each part.
 
 After editing, run the tests to make sure smart play (spreading money out and staying calm in a crash) still beats gambling, and that the lemonade stand helps without making investing pointless:
 
