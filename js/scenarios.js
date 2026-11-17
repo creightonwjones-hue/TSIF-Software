@@ -72,7 +72,9 @@ export const DEFAULTED_BOND_PRICE = 40;
 //    market   : how much the whole town moves (affects every stock)
 //    effects  : extra moves for specific companies
 //    tip      : (optional) a "hot tip" rumor at the News Stand
-//    lesson   : (optional) a PRO TIP shown with the year recap
+//    lesson   : (optional) a tip shown with the year recap
+//    season   : (optional) force the town's season: spring, summer, fall or winter
+//               (otherwise the seasons cycle spring → summer → fall → winter)
 // ---------------------------------------------------------------------
 export const SCENARIOS = [
   {
@@ -128,7 +130,7 @@ export const SCENARIOS = [
         effects: { farms: 0.25, frosty: -0.08 }, market: 0.03 },
       { headline: 'Wild Ride Inc. is building the world\'s biggest roller coaster. Its bond pays 10% a year.',
         outcome: 'The coaster is half built. Wild Ride paid its bondholders on time.', market: 0.04 },
-      { headline: 'No rain for months. A drought is starting.',
+      { headline: 'No rain for months. A drought is starting.', season: 'summer',
         outcome: 'Dry fields hurt Sprout Farms, but ice cream sales went through the roof.',
         effects: { farms: -0.35, frosty: 0.20, power: 0.06 } },
       { headline: 'Rumors say Wild Ride Inc. is running out of money for its roller coaster.',
@@ -140,7 +142,7 @@ export const SCENARIOS = [
         outcome: 'Turns out the video was a paid ad. SlimeCo dropped hard.',
         effects: { slime: -0.50 }, market: 0.04,
         lesson: 'Lots of people saying it online doesn\'t make it true. Check the facts.' },
-      { headline: 'The biggest snowstorm in 50 years is on the way.',
+      { headline: 'The biggest snowstorm in 50 years is on the way.', season: 'winter',
         outcome: 'Snow days everywhere: Frosty Cone froze, Pixel Games boomed, buses got stuck.',
         effects: { frosty: -0.25, arcade: 0.20, bus: -0.10 } },
       { headline: 'Prices have climbed for years and everyone feels rich.',

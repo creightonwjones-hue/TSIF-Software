@@ -1,6 +1,6 @@
 // Sprout City: wires the town, the top bar, and the building screens together.
 import * as E from './engine.js';
-import { SETTINGS } from './scenarios.js';
+import { SETTINGS, STOCKS } from './scenarios.js';
 import { h, money, sound, toast, isMuted, setMuted } from './ui.js';
 import { createTown } from './town.js';
 import { showStart } from './screens/start.js';
@@ -69,10 +69,28 @@ export const app = {
 
   refresh() {
     this.renderHud();
+    this.updateTown();
     const cash = document.getElementById('screen-cash');
     if (cash) cash.textContent = `Cash ${money(this.state.cash)}`;
     this.screenRefresh?.();
     this.save();
+  },
+
+  // Tell the town what's happening this year: season, hot tip, lemonade stand, ticker prices.
+  updateTown() {
+    const s = this.state;
+    if (!this.town || !s) return;
+    const year = Math.min(s.year, SETTINGS.years), i = year - 1;
+    const ev = E.getScenario(s.scenarioId).years[i] || {};
+    const season = ev.season || ['spring', 'summer', 'fall', 'winter'][i % 4];
+    const ticker = STOCKS.map((st) => {
+      const p = E.stockPrice(s, st.id, i), prev = i > 0 ? E.stockPrice(s, st.id, i - 1) : p;
+      const c = Math.round((p / prev - 1) * 100);
+      return { t: st.ticker, p: money(p), c: i === 0 ? 'NEW' : c === 0 ? '0%' : `${c > 0 ? '▲' : '▼'}${Math.abs(c)}%`, up: i > 0 && c > 0, down: c < 0 };
+    });
+    const biz = E.ensureBiz(s);
+    this.town.setWorld({ season, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
+      recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker });
   },
 
   // Run an engine action; show the problem kindly if it fails.
@@ -138,6 +156,7 @@ export const app = {
     if (!this.town) this.town = createTown(document.getElementById('town'), { color: playerColor(state), onEnter: (id) => this.enter(id) });
     else this.town.setColor(playerColor(state));
     this.town.resize();
+    this.updateTown();
     this.setTutorial(Math.min(tutorial, TUTORIAL.length));
     this.refresh();
     if (state.finished) return endScreen(this);
