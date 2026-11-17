@@ -82,6 +82,7 @@ export function sound(kind) {
 // ---------- Toasts ----------
 export function toast(text, kind = 'info') {
   const box = document.getElementById('toasts');
+  while (box.children.length >= 2) box.firstChild.remove();
   const t = h('div', { class: `toast ${kind}` }, text);
   box.append(t);
   setTimeout(() => t.classList.add('out'), kind === 'lesson' ? 5200 : 2600);

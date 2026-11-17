@@ -29,7 +29,7 @@ export function bankScreen(app) {
     loanRoom.textContent = `You can borrow up to ${money(E.borrowRoom(s))} more.`;
     const amt = loanPick.get();
     loanPreview.textContent = amt > 0
-      ? `Borrow ${money(amt)} → you'll owe ${money(E.round2((s.debt + amt) * (1 + SETTINGS.loanRate)))} next year.`
+      ? `Borrow ${money(amt)} → next year you'll owe ${money(E.round2((s.debt + amt) * (1 + SETTINGS.loanRate)))}${s.debt > 0 ? ' in total' : ''}.`
       : '';
   }
   app.screenRefresh = update;

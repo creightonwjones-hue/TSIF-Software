@@ -44,8 +44,7 @@ export function exchangeScreen(app) {
       desc);
     function upd() {
       const n = s.shares[st.id];
-      owned.innerHTML = '';
-      owned.append(h('small', {}, 'You own'), h('b', {}, `${n} share${n === 1 ? '' : 's'}`), n ? h('small', {}, `worth ${money(E.round2(n * price))}`) : null);
+      owned.replaceChildren(...[h('small', {}, 'You own'), h('b', {}, `${n} share${n === 1 ? '' : 's'}`), n ? h('small', {}, `worth ${money(E.round2(n * price))}`) : null].filter(Boolean));
       row.classList.toggle('mine', n > 0);
       cost.textContent = `${pick.get()} × ${money(price)} = ${money(E.round2(pick.get() * price))}`;
     }
@@ -78,8 +77,7 @@ export function exchangeScreen(app) {
       h('p', { class: 'row-desc-inline' }, b.desc));
     function upd() {
       const n = s.bonds[b.id];
-      owned.innerHTML = '';
-      owned.append(h('small', {}, 'You own'), h('b', {}, `${n} bond${n === 1 ? '' : 's'}`), n ? h('small', {}, `worth ${money(n * price)}`) : null);
+      owned.replaceChildren(...[h('small', {}, 'You own'), h('b', {}, `${n} bond${n === 1 ? '' : 's'}`), n ? h('small', {}, `worth ${money(n * price)}`) : null].filter(Boolean));
       row.classList.toggle('mine', n > 0);
       cost.textContent = `${pick.get()} × ${money(price)} = ${money(pick.get() * price)}`;
     }
