@@ -2,8 +2,10 @@
 import * as E from '../engine.js';
 import { STOCKS, BONDS } from '../scenarios.js';
 import { h, money, pct, amountPicker, toast, sound, lineChart } from '../ui.js';
+import { exchangeScene } from '../scenes.js';
 
 let lastTab = 'stocks';
+let flashedYear = 0;
 let lastPick = { stocks: 'basket', bonds: 'city' };
 const RISK_WORD = ['', 'Low risk', 'Medium risk', 'Higher risk', 'High risk'];
 
@@ -22,8 +24,13 @@ export function exchangeScreen(app) {
   const stockChange = (id) => (i > 0 ? E.stockPrice(s, id) / E.stockPrice(s, id, i - 1) - 1 : null);
   let detailUpd = () => {};
 
+  const flash = flashedYear !== s.year && i > 0;
+  flashedYear = s.year;
+  let firstRender = true;
   function renderList() {
     const tab = lastTab;
+    const doFlash = flash && firstRender && tab === 'stocks';
+    firstRender = false;
     const items = tab === 'stocks' ? STOCKS : BONDS;
     listBox.replaceChildren(
       h('div', { class: 'tabs', role: 'tablist' },
@@ -37,8 +44,10 @@ export function exchangeScreen(app) {
         const isStock = tab === 'stocks';
         const n = isStock ? s.shares[it.id] : s.bonds[it.id];
         const dead = !isStock && E.isDefaulted(s, it.id);
+        const ch = isStock ? stockChange(it.id) : 0;
+        const fl = doFlash && ch ? (ch > 0 ? 'flash-up' : 'flash-down') : '';
         return h('button', {
-          class: `ex-row ${lastPick[tab] === it.id ? 'sel' : ''} ${dead ? 'dead' : ''}`, type: 'button',
+          class: `ex-row ${lastPick[tab] === it.id ? 'sel' : ''} ${dead ? 'dead' : ''} ${fl}`, type: 'button',
           onclick: () => { sound('click'); lastPick[tab] = it.id; renderList(); renderDetail(); } },
           tile(it),
           h('span', { class: 'ex-name' }, it.name),
@@ -99,7 +108,8 @@ export function exchangeScreen(app) {
   }
 
   app.screenRefresh = () => detailUpd();
-  app.open({ title: 'Stock Exchange', theme: 'exchange', body: h('div', { class: 'two-col ex' }, listBox, detailBox) });
+  app.open({ title: 'Stock Exchange', theme: 'exchange', body: h('div', { class: 'stack' },
+    h('div', { class: 'box scene-box' }, exchangeScene(s, E.stockPrice)), h('div', { class: 'two-col ex' }, listBox, detailBox)) });
   renderList();
   renderDetail();
 }

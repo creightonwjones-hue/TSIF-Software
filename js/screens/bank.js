@@ -2,6 +2,7 @@
 import * as E from '../engine.js';
 import { SETTINGS } from '../scenarios.js';
 import { h, money, amountPicker } from '../ui.js';
+import { bankScene } from '../scenes.js';
 
 export function bankScreen(app) {
   const s = app.state;
@@ -34,7 +35,7 @@ export function bankScreen(app) {
 
   app.open({
     title: 'Bank', theme: 'bank',
-    body: h('div', { class: 'two-col' },
+    body: h('div', { class: 'stack' }, h('div', { class: 'box scene-box' }, bankScene()), h('div', { class: 'two-col' },
       h('section', { class: 'box bank-card' },
         h('h2', {}, 'Savings'),
         h('span', { class: 'badge safe' }, `+${pctS}% a year · no risk`),
@@ -54,7 +55,7 @@ export function bankScreen(app) {
           h('button', { class: 'btn primary', type: 'button', onclick: () => {
             if (app.act(E.borrow(s, loanPick.get()))) app.lessonOnce('borrow', `Loans aren't free: the bank adds ${pctL}% to your debt every year, and debt comes off your final score.`);
           } }, 'Borrow'),
-          h('button', { class: 'btn', type: 'button', onclick: () => app.act(E.repay(s, loanPick.get())) }, 'Pay back')))),
+          h('button', { class: 'btn', type: 'button', onclick: () => app.act(E.repay(s, loanPick.get())) }, 'Pay back'))))),
   });
   update();
 }

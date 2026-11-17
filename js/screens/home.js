@@ -2,6 +2,7 @@
 import * as E from '../engine.js';
 import { STOCKS, BONDS, SETTINGS } from '../scenarios.js';
 import { h, money, pct, sound, moneyPop } from '../ui.js';
+import { homeScene } from '../scenes.js';
 
 export function homeScreen(app) {
   const s = app.state;
@@ -10,6 +11,7 @@ export function homeScreen(app) {
   app.open({
     modal: true, theme: 'home',
     body: h('div', { class: 'home' },
+      homeScene(app.color(), false),
       h('h2', {}, last ? 'Sleep and finish the game?' : `Go to sleep and end Year ${s.year}?`),
       h('p', { class: 'hint' }, last
         ? 'This locks in your final score.'
@@ -55,7 +57,8 @@ function endYear(app) {
   app.open({
     modal: true, closable: false, theme: 'results',
     body: h('div', { class: 'results' },
-      h('h2', {}, `Year ${r.year} recap`),
+      homeScene(app.color(), true),
+      h('h2', {}, `Good morning! Year ${r.year} recap`),
       h('div', { class: 'paper' }, h('small', { class: 'paper-head' }, 'What happened'), h('p', { class: 'headline' }, r.outcome)),
       h('div', { class: 'worth-change' },
         h('div', {}, h('small', {}, 'Net worth before'), h('b', {}, money(r.netBefore))),

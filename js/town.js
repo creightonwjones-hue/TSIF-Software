@@ -1,9 +1,11 @@
 // Sprout City town: a top-down pixel-art main street drawn on a <canvas>.
 // The map is 32 × 18 tiles of 16 px, drawn small and scaled up crisply.
 // Walk with arrow keys / WASD, or tap anywhere (or on a building) to walk there.
+// The town changes with the seasons and has townsfolk, ducks, smoke and weather.
 
 const T = 16, MW = 32, MH = 18, W = MW * T, H = MH * T;
 const SPEED = 82; // map pixels per second
+const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const OUTLINE = '#26313F';
 // Buildings (tile units). `door` = the door's tile column on the bottom wall. `enter` = can walk in.
@@ -12,7 +14,7 @@ export const BUILDINGS = [
   { id: 'home', label: 'HOME', x: 11, y: 2, w: 4, h: 5, door: 12, wall: 'sky', roof: 'red', enter: true, chimney: true },
   { id: 'exchange', label: 'STOCK EXCHANGE', x: 19, y: 2, w: 10, h: 5, door: 23, wall: 'stone', roof: 'green', enter: true, columns: true },
   { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, wall: 'cream', roof: 'orange', enter: true, awning: '#4A6A9A' },
-  { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, wall: 'lemon', roof: 'red', enter: true, awning: '#E0B42E' },
+  { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, enter: true, stand: true },
   { id: 'factory', label: '', x: 24, y: 11, w: 5, h: 4, door: 26, wall: 'brick', roof: 'gray', chimney: true },
 ];
 const PATHS = [[1, 8, 30, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [23, 7, 1, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
@@ -24,10 +26,29 @@ for (let y = 1; y < MH - 1; y++) { TREES.push([0, y]); TREES.push([MW - 1, y]); 
 TREES.push([9, 2], [16, 2], [16, 4], [1, 11], [13, 15], [9, 12], [29, 13], [17, 12]);
 const FLOWERS = [[3, 6.6], [7, 6.6], [20, 6.6], [27, 6.6], [10, 15], [11, 15], [2, 14], [23, 12], [23, 13]];
 const LAMPS = [[4, 10], [11, 10], [20, 10], [28, 10]];
+const CHIMNEYS = BUILDINGS.filter((b) => b.chimney).map((b) => [b.x * T + b.w * T - 14, b.y * T - 14]);
+
+// Townsfolk walk these loops (tile waypoints; `wait` = seconds to pause there).
+const ROUTES = [
+  { shirt: '#C8664F', hair: '#2E2420', speed: 26, pts: [[2, 8], [29, 8, 1.5]] },
+  { shirt: '#5B8DB8', hair: '#C9A15B', speed: 22, pts: [[29, 9], [3, 9, 2]] },
+  { shirt: '#8C6BB1', hair: '#5A3A28', speed: 24, pts: [[15, 9], [15, 16], [6, 16], [6, 15, 2.5], [6, 16], [26, 16], [26, 15, 2], [26, 16], [15, 16], [15, 10]] },
+  { shirt: '#3F8A4F', hair: '#2E2420', speed: 25, pts: [[8, 9], [5, 9], [5, 7, 2.5], [5, 9], [23, 9], [23, 7, 2.5], [23, 9]] },
+  { shirt: '#D47AA0', hair: '#7A4A22', speed: 20, pts: [[16, 10], [16, 16], [17, 16, 1.5], [16, 16], [16, 9], [12, 9], [12, 7, 2], [12, 9], [16, 9]] },
+];
+const QUEUE_SPOTS = [[21, 15], [22, 15], [23, 15], [24, 15]];
+const QUEUE_LOOK = [['#E0A62E', '#2E2420'], ['#2E8C8C', '#C9A15B'], ['#C8503E', '#5A3A28'], ['#5B8DB8', '#7A4A22']];
+
+const SEASONS = {
+  spring: { grass: ['#6AA046', '#5E9440', '#76AE50', '#83BA58'], tree: ['#2F5E2A', '#3F7A34', '#5A9A44', '#7CB85A'], blossom: '#F2A7C3' },
+  summer: { grass: ['#64A23E', '#579336', '#71AE48', '#82BD52'], tree: ['#2A5A26', '#367A30', '#4E9640', '#6DB052'] },
+  fall:   { grass: ['#8A9A48', '#7C8C40', '#97A652', '#A3AE5C'], tree: ['#7A3A1E', '#B85A2A', '#D9832E', '#E8B04A'] },
+  winter: { grass: ['#E6EDF2', '#D6E0E8', '#F2F6F9', '#C9D6E0'], tree: ['#1F4A2E', '#2E5E3A', '#3E7046', '#FFFFFF'] },
+};
 
 const ROOF = { blue: ['#4A6A9A', '#3A5680', '#5C7EB0'], red: ['#B4503E', '#8E3E30', '#C8664F'], green: ['#3F7F6A', '#2F6655', '#52957E'],
   orange: ['#D08A3A', '#A86E2A', '#E2A050'], gray: ['#6E7480', '#585D68', '#848A96'] };
-const DOOR_COLOR = { bank: '#2F4E6E', exchange: '#2F6655', home: '#8E3E30', lemonade: '#B08A1E' };
+const DOOR_COLOR = { bank: '#2F4E6E', exchange: '#2F6655', home: '#8E3E30' };
 
 // ---------- solid tiles & doors ----------
 const solid = Array.from({ length: MH }, () => Array(MW).fill(false));
@@ -43,16 +64,19 @@ let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
 
-// ---------- static scenery (drawn once) ----------
-function drawStatic() {
+// ---------- static scenery (redrawn when the season changes) ----------
+function drawStatic(season) {
   seed = 7;
+  const SZ = SEASONS[season];
+  const winter = season === 'winter';
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d');
-  const G = ['#6AA046', '#5E9440', '#76AE50', '#83BA58'];
+  const G = SZ.grass;
   R(c, 0, 0, W, H, G[0]);
   for (let i = 0; i < 2600; i++) R(c, Math.floor(rnd() * W), Math.floor(rnd() * H), 1, rnd() < .5 ? 2 : 1, G[1 + Math.floor(rnd() * 3)]);
+  if (winter) for (let i = 0; i < 260; i++) R(c, Math.floor(rnd() * W), Math.floor(rnd() * H), 2, 1, '#9DB58A'); // grass poking through
   // cobblestone streets with a pale curb
-  for (const [x, y, w, h] of PATHS) R(c, x * T - 1, y * T - 1, w * T + 2, h * T + 2, '#D9D2C3');
+  for (const [x, y, w, h] of PATHS) R(c, x * T - 1, y * T - 1, w * T + 2, h * T + 2, winter ? '#F4F7FA' : '#D9D2C3');
   for (const [x, y, w, h] of PATHS) {
     R(c, x * T + 1, y * T + 1, w * T - 2, h * T - 2, '#9E978C');
     for (let yy = y * T + 1, row = 0; yy < (y + h) * T - 1; yy += 4, row++) {
@@ -60,25 +84,32 @@ function drawStatic() {
         R(c, xx, yy, Math.min(5, (x + w) * T - 1 - xx), 3, ['#B3AC9F', '#A8A194', '#BDB6A9'][Math.floor(rnd() * 3)]);
       }
     }
+    if (winter) for (let i = 0; i < w * h * 4; i++) R(c, x * T + Math.floor(rnd() * w * T), y * T + Math.floor(rnd() * h * T), 3, 2, '#EEF3F7');
   }
-  // pond
+  // pond (frozen in winter)
   const [px, py, pw, ph] = POND.map((v) => v * T);
   R(c, px - 2, py + 1, pw + 4, ph - 2, '#C9C2B5'); R(c, px + 1, py - 2, pw - 2, ph + 4, '#C9C2B5');
-  R(c, px, py + 2, pw, ph - 4, '#4F86B0'); R(c, px + 2, py, pw - 4, ph, '#4F86B0');
-  R(c, px + 3, py + 3, pw - 6, ph - 6, '#5E97C0');
-  for (let i = 0; i < 6; i++) R(c, px + 6 + i * 6, py + 8 + (i % 3) * 10, 4, 1, '#9CC6E0');
+  const water = winter ? ['#BFD8E8', '#D4E6F1'] : ['#4F86B0', '#5E97C0'];
+  R(c, px, py + 2, pw, ph - 4, water[0]); R(c, px + 2, py, pw - 4, ph, water[0]);
+  R(c, px + 3, py + 3, pw - 6, ph - 6, water[1]);
+  if (winter) for (let i = 0; i < 5; i++) R(c, px + 8 + i * 7, py + 10 + (i % 2) * 14, 6, 1, '#FFFFFF');
+  // lily pads in spring / summer
+  if (season === 'spring' || season === 'summer') for (const [lx, ly] of [[px + 9, py + 30], [px + 34, py + 12]]) { R(c, lx, ly, 6, 4, '#3E7A2E'); R(c, lx + 1, ly + 1, 2, 1, '#5A9A48'); if (season === 'spring') R(c, lx + 4, ly - 1, 2, 2, '#F2A7C3'); }
   // hedges along the street
   for (let x = 1; x < MW - 1; x++) {
     if (HEDGE_GAPS.includes(x)) continue;
     const X = x * T, Y = 7 * T + 8;
     R(c, X, Y, 16, 6, '#2F6A2C'); R(c, X + 1, Y - 1, 14, 6, '#3F7F38'); R(c, X + 3, Y, 3, 2, '#5A9A48'); R(c, X + 10, Y + 1, 2, 2, '#5A9A48');
+    if (winter) R(c, X + 1, Y - 1, 14, 2, '#FFFFFF');
   }
-  for (const [fx, fy] of FLOWERS) {
+  if (!winter) for (const [fx, fy] of FLOWERS) {
     const x = fx * T, y = Math.round(fy * T);
-    for (const [ox, oy, col] of [[3, 12, '#E8607A'], [8, 13, '#F2D45C'], [12, 12, '#A97FD8']]) { R(c, x + ox, y + oy, 2, 2, col); R(c, x + ox, y + oy + 2, 1, 2, '#3E7A2E'); }
+    const cols = season === 'fall' ? ['#D9832E', '#B85A2A', '#E8B04A'] : ['#E8607A', '#F2D45C', '#A97FD8'];
+    for (const [ox, oy, col] of [[3, 12, cols[0]], [8, 13, cols[1]], [12, 12, cols[2]]]) { R(c, x + ox, y + oy, 2, 2, col); R(c, x + ox, y + oy + 2, 1, 2, '#3E7A2E'); }
   }
-  for (const b of BUILDINGS) drawBuilding(c, b);
-  for (const [lx, ly] of LAMPS) { const x = lx * T + 7, y = ly * T; R(c, x, y - 12, 2, 14, OUTLINE); R(c, x - 2, y - 16, 6, 5, OUTLINE); R(c, x - 1, y - 15, 4, 3, '#F8E08A'); }
+  for (const b of BUILDINGS) if (!b.stand) drawBuilding(c, b, winter);
+  drawStandBase(c, BUILDINGS.find((b) => b.stand), winter);
+  for (const [lx, ly] of LAMPS) { const x = lx * T + 7, y = ly * T; R(c, x, y - 12, 2, 14, OUTLINE); R(c, x - 2, y - 16, 6, 5, OUTLINE); R(c, x - 1, y - 15, 4, 3, '#F8E08A'); if (winter) R(c, x - 2, y - 17, 6, 1, '#FFFFFF'); }
   return cv;
 }
 
@@ -89,11 +120,10 @@ function wallFill(c, kind, x, y, w, h) {
     for (let yy = y, r = 0; yy < y + h; yy += 3, r++) { R(c, x, yy, w, 1, '#93412F'); for (let xx = x + (r % 2) * 3; xx < x + w; xx += 6) R(c, xx, yy, 1, 3, '#93412F'); }
   } else if (kind === 'stone') { R(c, x, y, w, h, '#E7E1D4'); for (let yy = y; yy < y + h; yy += 6) R(c, x, yy, w, 1, '#D2CABA'); }
   else if (kind === 'sky') siding('#CFE0EC', '#B3C9D9');
-  else if (kind === 'lemon') siding('#F6E7A8', '#E3D088');
   else siding('#F1E7D2', '#DCCFB4');
 }
 
-function drawBuilding(c, b) {
+function drawBuilding(c, b, winter) {
   const x = b.x * T, y = b.y * T, w = b.w * T, h = b.h * T, wallH = 28, roofH = h - wallH;
   const [r1, r2, r3] = ROOF[b.roof];
   R(c, x + 4, y + 6, w, h, 'rgba(20,30,20,.22)'); // shadow
@@ -107,50 +137,89 @@ function drawBuilding(c, b) {
     R(c, cx, y + roofH + 3, 5, wallH - 7, '#FFFFFF'); R(c, cx + 4, y + roofH + 3, 1, wallH - 7, '#CFC7B8');
   }
   if (b.awning) for (let i = 0; i < w / 6; i++) R(c, x + i * 6, y + roofH + 3, 6, 4, i % 2 ? '#FFFFFF' : b.awning);
-  const wins = b.id === 'lemonade' ? [] : b.columns ? [x + 20, x + w - 34] : b.w <= 4 ? [x + 44] : [x + 8, x + w - 22];
+  const wins = b.columns ? [x + 20, x + w - 34] : b.w <= 4 ? [x + 44] : [x + 8, x + w - 22];
   for (const wx of wins) {
     if (Math.abs(wx + 6 - (doorX + 5)) < 14) continue;
     R(c, wx - 1, y + roofH + 6, 14, 12, '#FFFFFF'); R(c, wx, y + roofH + 7, 12, 10, '#7FB0D6'); R(c, wx + 1, y + roofH + 8, 3, 3, '#D4ECFA');
     R(c, wx + 5, y + roofH + 7, 2, 10, '#FFFFFF'); R(c, wx, y + roofH + 11, 12, 1, '#FFFFFF');
-    R(c, wx - 1, y + roofH + 18, 14, 3, '#5E6A78'); R(c, wx, y + roofH + 17, 2, 2, '#E8607A'); R(c, wx + 5, y + roofH + 17, 2, 2, '#F2D45C'); R(c, wx + 10, y + roofH + 17, 2, 2, '#E8607A');
-  }
-  if (b.id === 'lemonade') { // counter with a pitcher
-    R(c, x + 34, y + roofH + 10, 24, 10, '#FFFFFF'); R(c, x + 35, y + roofH + 11, 22, 8, '#F2D45C'); R(c, x + 42, y + roofH + 5, 6, 6, '#F2D45C'); R(c, x + 42, y + roofH + 5, 6, 1, '#FFFFFF');
+    R(c, wx - 1, y + roofH + 18, 14, 3, '#5E6A78');
+    if (!winter) { R(c, wx, y + roofH + 17, 2, 2, '#E8607A'); R(c, wx + 5, y + roofH + 17, 2, 2, '#F2D45C'); R(c, wx + 10, y + roofH + 17, 2, 2, '#E8607A'); }
+    else R(c, wx - 1, y + roofH + 17, 14, 1, '#FFFFFF');
   }
   // door
   R(c, doorX - 1, y + h - 19, 12, 19, '#FFFFFF'); R(c, doorX, y + h - 18, 10, 18, DOOR_COLOR[b.id] || '#5E6A78');
   R(c, doorX + 1, y + h - 17, 8, 6, 'rgba(255,255,255,.25)'); R(c, doorX + 7, y + h - 9, 2, 2, '#E8C060');
+  if (winter && b.id === 'home') { R(c, doorX + 2, y + h - 15, 6, 6, '#3F7F38'); R(c, doorX + 4, y + h - 13, 2, 2, '#C8503E'); } // wreath
   // shingle roof
   R(c, x - 3, y, w + 6, roofH + 2, r2);
   for (let ry = y + 1, row = 0; ry < y + roofH; ry += 4, row++) for (let rx = x - 3 + (row % 2) * 3; rx < x + w + 3; rx += 6) { R(c, rx, ry, 5, 3, r1); R(c, rx, ry, 5, 1, r3); }
+  if (winter) { // snow on the roof
+    R(c, x - 3, y, w + 6, 10, '#F4F7FA'); R(c, x - 3, y + 10, w + 6, 2, '#DCE6EE');
+    for (let rx = x - 3; rx < x + w + 3; rx += 7) R(c, rx, y + 12, 4, 2 + ((rx / 7) % 3), '#F4F7FA');
+  }
   R(c, x - 3, y + roofH, w + 6, 2, OUTLINE);
-  if (b.chimney) { R(c, x + w - 18, y - 14, 9, 16, '#7A3A2C'); R(c, x + w - 17, y - 14, 7, 2, '#93412F'); }
+  if (b.chimney) { R(c, x + w - 18, y - 14, 9, 16, '#7A3A2C'); R(c, x + w - 17, y - 14, 7, 2, winter ? '#FFFFFF' : '#93412F'); }
 }
 
-function drawTree(c, tx, ty) {
+// The lemonade stand: a deck, a striped canopy on poles, and a counter with a pitcher, cups and lemons.
+function drawStandBase(c, b, winter) {
+  const x = b.x * T, y = b.y * T;
+  R(c, x + 3, y + 28, 60, 36, 'rgba(20,30,20,.18)');
+  // wooden deck
+  R(c, x + 1, y + 26, 62, 36, '#C9A26B');
+  for (let yy = y + 29; yy < y + 62; yy += 5) R(c, x + 1, yy, 62, 1, '#B08A55');
+  for (let xx = x + 9; xx < x + 63; xx += 16) R(c, xx, y + 26, 1, 36, '#B9965F');
+  // poles
+  R(c, x + 8, y + 16, 3, 30, '#8A6E55'); R(c, x + 53, y + 16, 3, 30, '#8A6E55');
+  // counter
+  R(c, x + 5, y + 38, 54, 22, OUTLINE);
+  R(c, x + 6, y + 41, 52, 18, '#F6E7A8');
+  for (let yy = y + 44; yy < y + 59; yy += 3) R(c, x + 6, yy, 52, 1, '#E8D48C');
+  R(c, x + 5, y + 37, 54, 5, '#D9B77A'); R(c, x + 5, y + 37, 54, 1, '#E8CC94');
+  // lemons painted on the counter front
+  for (const lx of [x + 10, x + 48]) { R(c, lx, y + 49, 6, 5, '#F2D45C'); R(c, lx + 1, y + 48, 4, 7, '#F2D45C'); R(c, lx + 1, y + 49, 2, 2, '#FFF4B0'); R(c, lx + 2, y + 47, 2, 1, '#5A9A48'); }
+  // on the counter: pitcher, stacked cups, bowl of lemons
+  R(c, x + 14, y + 27, 9, 11, '#26313F'); R(c, x + 15, y + 28, 7, 9, '#E8F4FA'); R(c, x + 15, y + 31, 7, 6, '#F2D45C'); R(c, x + 22, y + 30, 2, 4, '#26313F');
+  for (let i = 0; i < 3; i++) { R(c, x + 28, y + 34 - i * 2, 5, 2, i % 2 ? '#FFFFFF' : '#E8EEF2'); }
+  R(c, x + 38, y + 33, 12, 5, '#8A6E55'); R(c, x + 39, y + 31, 3, 3, '#F2D45C'); R(c, x + 43, y + 30, 3, 3, '#F2D45C'); R(c, x + 46, y + 31, 3, 3, '#E8C440');
+  // striped canopy with a scalloped edge
+  R(c, x + 2, y + 6, 60, 13, OUTLINE);
+  for (let i = 0; i < 60; i += 6) R(c, x + 2 + i, y + 7, 6, 11, (i / 6) % 2 ? '#FFFFFF' : '#F2C230');
+  for (let i = 0; i < 60; i += 6) { R(c, x + 3 + i, y + 18, 4, 2, (i / 6) % 2 ? '#FFFFFF' : '#F2C230'); R(c, x + 3 + i, y + 20, 4, 1, OUTLINE); }
+  R(c, x + 2, y + 7, 60, 2, 'rgba(255,255,255,.45)');
+  if (winter) R(c, x + 2, y + 5, 60, 3, '#F4F7FA');
+  // chalkboard price sign
+  R(c, x + 58, y + 46, 9, 12, '#8A6E55'); R(c, x + 59, y + 47, 7, 9, OUTLINE); R(c, x + 61, y + 49, 1, 5, '#FFFFFF'); R(c, x + 60, y + 50, 3, 1, '#FFFFFF'); R(c, x + 60, y + 52, 3, 1, '#FFFFFF');
+}
+
+function drawTree(c, tx, ty, season) {
   const x = tx * T, y = ty * T;
+  const [d, m, l, hi] = SEASONS[season].tree;
   R(c, x + 2, y + 13, 14, 3, 'rgba(20,30,20,.22)');
   R(c, x + 6, y + 10, 4, 6, '#6B4A30');
-  R(c, x + 1, y + 2, 14, 10, '#2F5E2A'); R(c, x + 3, y, 10, 14, '#2F5E2A');
-  R(c, x + 2, y + 2, 12, 8, '#3F7A34'); R(c, x + 4, y + 1, 8, 10, '#3F7A34');
-  R(c, x + 4, y + 2, 5, 4, '#5A9A44'); R(c, x + 9, y + 6, 3, 3, '#4E8A3C'); R(c, x + 5, y + 3, 2, 1, '#7CB85A');
+  R(c, x + 1, y + 2, 14, 10, d); R(c, x + 3, y, 10, 14, d);
+  R(c, x + 2, y + 2, 12, 8, m); R(c, x + 4, y + 1, 8, 10, m);
+  R(c, x + 4, y + 2, 5, 4, l); R(c, x + 9, y + 6, 3, 3, l); R(c, x + 5, y + 3, 2, 1, hi);
+  if (season === 'winter') { R(c, x + 3, y, 10, 3, '#FFFFFF'); R(c, x + 1, y + 3, 4, 2, '#F4F7FA'); }
+  if (season === 'spring' && (tx + ty) % 2 === 0) { const p = SEASONS.spring.blossom; R(c, x + 4, y + 4, 2, 2, p); R(c, x + 10, y + 3, 2, 2, p); R(c, x + 7, y + 8, 2, 2, p); }
 }
 
-// Player sprite: 12 × 16, four directions, two-frame walk.
-function drawPlayer(c, px, py, dir, frame, shirt) {
-  const x = Math.round(px) - 6, y = Math.round(py) - 16, O = OUTLINE, SKIN = '#F2CDA6', HAIR = '#5A3A28', PANTS = '#34507E';
-  R(c, x + 2, y + 15, 9, 2, 'rgba(0,0,0,.2)');
+// A person sprite: 12 × 16, four directions, two-frame walk.
+function drawPerson(c, px, py, dir, frame, shirt, hair = '#5A3A28', upperOnly = false) {
+  const x = Math.round(px) - 6, y = Math.round(py) - 16, O = OUTLINE, SKIN = '#F2CDA6', PANTS = '#34507E';
+  if (!upperOnly) R(c, x + 2, y + 15, 9, 2, 'rgba(0,0,0,.2)');
   R(c, x + 2, y, 8, 1, O); R(c, x + 1, y + 1, 10, 7, O);
-  if (dir === 'up') { R(c, x + 2, y + 1, 8, 6, HAIR); }
+  if (dir === 'up') { R(c, x + 2, y + 1, 8, 6, hair); }
   else {
-    R(c, x + 2, y + 1, 8, 3, HAIR); R(c, x + 2, y + 4, 8, 3, SKIN);
+    R(c, x + 2, y + 1, 8, 3, hair); R(c, x + 2, y + 4, 8, 3, SKIN);
     if (dir === 'down') { R(c, x + 4, y + 5, 1, 1, O); R(c, x + 7, y + 5, 1, 1, O); }
-    else if (dir === 'left') { R(c, x + 2, y + 4, 2, 2, HAIR); R(c, x + 4, y + 5, 1, 1, O); }
-    else { R(c, x + 8, y + 4, 2, 2, HAIR); R(c, x + 7, y + 5, 1, 1, O); }
+    else if (dir === 'left') { R(c, x + 2, y + 4, 2, 2, hair); R(c, x + 4, y + 5, 1, 1, O); }
+    else { R(c, x + 8, y + 4, 2, 2, hair); R(c, x + 7, y + 5, 1, 1, O); }
   }
   R(c, x + 1, y + 8, 10, 5, O); R(c, x + 2, y + 8, 8, 4, shirt);
   if (dir === 'down' || dir === 'up') { R(c, x, y + 9, 2, 3, SKIN); R(c, x + 10, y + 9, 2, 3, SKIN); }
   else R(c, dir === 'left' ? x + 4 : x + 6, y + 9, 2, 3, SKIN);
+  if (upperOnly) return;
   const step = frame ? 1 : 0;
   R(c, x + 2, y + 12, 8, 3, O);
   R(c, x + 3, y + 12, 2, 2 - step, PANTS); R(c, x + 7, y + 12, 2, 1 + step, PANTS);
@@ -165,6 +234,16 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
   let path = null, pathBuilding = null;
   const keys = new Set();
   let paused = false, guide = null, S = 1, last = performance.now();
+  // what's going on in the game this year (set by main.js)
+  let world = { season: 'spring', tip: false, shiftDone: false, helper: false, recipe: false, bigStand: false, savings: false, ticker: [] };
+
+  // townsfolk
+  const folk = ROUTES.map((r, i) => ({ ...r, x: r.pts[0][0] * T + 8, y: r.pts[0][1] * T + 12, i: 1, dir: 1, wait: i * 0.8, anim: 0, face: 'down' }));
+  // ambient bits
+  const smoke = [], weather = [];
+  const ducks = [{ x: POND[0] * T + 14, y: POND[1] * T + 16, vx: 4, t: 0 }, { x: POND[0] * T + 32, y: POND[1] * T + 32, vx: -3, t: 2 }];
+  const butterflies = [0, 1, 2].map((i) => ({ hx: FLOWERS[i * 3][0] * T + 8, hy: FLOWERS[i * 3][1] * T + 10, t: i * 2, col: ['#F2D45C', '#FFFFFF', '#E8A0C0'][i] }));
+  let birds = null, birdTimer = 6, smokeTimer = 0;
 
   function resize() {
     const box = canvas.parentElement.getBoundingClientRect();
@@ -173,7 +252,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     canvas.style.width = `${Math.floor(W * fit)}px`; canvas.style.height = `${Math.floor(H * fit)}px`;
     canvas.width = Math.floor(W * fit * dpr); canvas.height = Math.floor(H * fit * dpr);
     S = canvas.width / W;
-    scenery = drawStatic();
+    scenery = drawStatic(world.season);
   }
 
   // feet hit-box corners
@@ -225,6 +304,49 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     moveBy(dx * SPEED * dt, dy * SPEED * dt);
   }
 
+  // ---------- ambient life ----------
+  function stepLife(dt) {
+    if (REDUCED) return;
+    for (const f of folk) { // walk waypoint loops, ping-ponging at the ends
+      if (f.wait > 0) { f.wait -= dt; f.moving = false; continue; }
+      const [tx, ty, wait] = f.pts[f.i];
+      const gx = tx * T + 8, gy = ty * T + 12, ex = gx - f.x, ey = gy - f.y, d = Math.hypot(ex, ey);
+      if (d < 1) {
+        f.x = gx; f.y = gy; if (wait) { f.wait = wait; f.face = 'up'; }
+        if (f.i + f.dir >= f.pts.length || f.i + f.dir < 0) { if (f.pts.length === 2) f.dir *= -1; else f.i = -1; }
+        f.i = f.pts.length === 2 ? f.i + f.dir : (f.i + 1) % f.pts.length;
+        continue;
+      }
+      const s = Math.min(d, f.speed * dt);
+      f.x += (ex / d) * s; f.y += (ey / d) * s; f.moving = true; f.anim += dt * 6;
+      f.face = Math.abs(ex) > Math.abs(ey) ? (ex < 0 ? 'left' : 'right') : (ey < 0 ? 'up' : 'down');
+    }
+    smokeTimer -= dt;
+    if (smokeTimer <= 0) { smokeTimer = 0.45; for (const [cx, cy] of CHIMNEYS) smoke.push({ x: cx + 1, y: cy, t: 0 }); }
+    for (const p of smoke) { p.t += dt; p.y -= 9 * dt; p.x += 3 * dt; }
+    while (smoke.length && smoke[0].t > 2.6) smoke.shift();
+    for (const dk of ducks) {
+      dk.t += dt; dk.x += dk.vx * dt; dk.y += Math.sin(dk.t * 0.7) * 2 * dt;
+      const minX = POND[0] * T + 6, maxX = (POND[0] + POND[2]) * T - 12;
+      if (dk.x < minX || dk.x > maxX) dk.vx *= -1;
+    }
+    for (const b of butterflies) b.t += dt;
+    birdTimer -= dt;
+    if (!birds && birdTimer <= 0) birds = { x: -20, y: 20 + Math.random() * 120, t: 0 };
+    if (birds) { birds.t += dt; birds.x += 70 * dt; birds.y += 12 * dt; if (birds.x > W + 30) { birds = null; birdTimer = 10 + Math.random() * 10; } }
+    // seasonal weather particles
+    const want = { spring: 14, summer: 0, fall: 22, winter: 60 }[world.season];
+    while (weather.length < want) weather.push({ x: Math.random() * W, y: Math.random() * H, t: Math.random() * 6 });
+    weather.length = Math.min(weather.length, want);
+    for (const p of weather) {
+      p.t += dt;
+      if (world.season === 'winter') { p.y += 16 * dt; p.x += Math.sin(p.t) * 6 * dt; }
+      else { p.y += 11 * dt; p.x += (10 + Math.sin(p.t * 2) * 12) * dt; }
+      if (p.y > H) { p.y = -4; p.x = Math.random() * W; }
+      if (p.x > W) p.x = 0;
+    }
+  }
+
   // Breadth-first search over tiles for tap-to-walk.
   function findPath(fx, fy, tx, ty) {
     if (isSolid(tx, ty)) return null;
@@ -253,33 +375,109 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
   }
 
   function draw(t) {
+    const sec = t / 1000;
     lg.drawImage(scenery, 0, 0);
-    // depth-sort trees and the player by their bottom edge
-    const items = TREES.map(([x, y]) => ({ y: y * T + 15, fn: () => drawTree(lg, x, y) }));
-    items.push({ y: me.y, fn: () => drawPlayer(lg, me.x, me.y, me.dir, me.moving ? Math.floor(me.anim) % 2 : 0, color) });
+    // pond life
+    if (world.season !== 'winter') {
+      for (let i = 0; i < 3; i++) { const rx = POND[0] * T + 8 + ((sec * 4 + i * 13) % 30), ry = POND[1] * T + 14 + i * 9; R(lg, rx, ry, 5, 1, '#9CC6E0'); }
+      for (const dk of ducks) {
+        const x = Math.round(dk.x), y = Math.round(dk.y), left = dk.vx < 0;
+        R(lg, x, y + 3, 8, 3, '#FFFFFF'); R(lg, left ? x : x + 5, y, 3, 4, '#FFFFFF'); R(lg, left ? x - 2 : x + 8, y + 1, 2, 1, '#E8A23A'); R(lg, left ? x + 1 : x + 6, y + 1, 1, 1, OUTLINE);
+        R(lg, x + 1, y + 6, 7, 1, '#7FB0D6');
+      }
+    }
+    // lamp glow
+    const glow = 0.18 + Math.sin(sec * 2) * 0.05;
+    for (const [lx, ly] of LAMPS) { lg.fillStyle = `rgba(248,224,138,${glow})`; lg.fillRect(lx * T + 2, ly * T - 21, 12, 12); }
+    // the stand's helper and upgrades
+    const stand = BUILDINGS.find((b) => b.stand);
+    if (world.helper) drawPerson(lg, stand.x * T + 46, stand.y * T + 40, 'down', 0, '#5B8DB8', '#C9A15B', true);
+    if (world.recipe) { const sx = stand.x * T + 30, sy = stand.y * T + 1; R(lg, sx, sy, 9, 7, OUTLINE); R(lg, sx + 1, sy + 1, 7, 5, '#F2D45C'); R(lg, sx + 3, sy + 2, 3, 3, '#FFFFFF'); }
+    if (world.bigStand) { const sx = stand.x * T + 60, sy = stand.y * T + 28; R(lg, sx, sy, 10, 8, '#8A6E55'); R(lg, sx + 1, sy - 3, 3, 3, '#FFFFFF'); R(lg, sx + 5, sy - 3, 3, 3, '#FFFFFF'); }
+    // depth-sort trees, people and the player by their bottom edge
+    const items = TREES.map(([x, y]) => ({ y: y * T + 15, fn: () => drawTree(lg, x, y, world.season) }));
+    items.push({ y: me.y, fn: () => drawPerson(lg, me.x, me.y, me.dir, me.moving ? Math.floor(me.anim) % 2 : 0, color) });
+    for (const f of folk) items.push({ y: f.y, fn: () => drawPerson(lg, f.x, f.y, f.face, f.moving ? Math.floor(f.anim) % 2 : 0, f.shirt, f.hair) });
+    if (!world.shiftDone) QUEUE_SPOTS.forEach(([qx, qy], i) => {
+      const bob = !REDUCED && Math.floor(sec * 2 + i) % 4 === 0 ? 1 : 0;
+      items.push({ y: qy * T + 12, fn: () => drawPerson(lg, qx * T + 8, qy * T + 12 - bob, 'left', 0, QUEUE_LOOK[i][0], QUEUE_LOOK[i][1]) });
+    });
     items.sort((a, b) => a.y - b.y).forEach((it) => it.fn());
+    // smoke, butterflies, birds, weather
+    for (const p of smoke) { const a = 1 - p.t / 2.6, s = 2 + Math.floor(p.t * 1.5); lg.fillStyle = `rgba(230,232,236,${a * 0.8})`; lg.fillRect(Math.round(p.x), Math.round(p.y), s, s); }
+    if (world.season === 'spring' || world.season === 'summer') for (const b of butterflies) {
+      const x = Math.round(b.hx + Math.sin(b.t * 0.9) * 14), y = Math.round(b.hy + Math.sin(b.t * 1.7) * 6 - 6), open = Math.floor(b.t * 8) % 2;
+      R(lg, x - (open ? 2 : 1), y, open ? 2 : 1, 2, b.col); R(lg, x + 1, y, open ? 2 : 1, 2, b.col); R(lg, x, y, 1, 2, OUTLINE);
+    }
+    if (birds) for (let i = 0; i < 3; i++) {
+      const bx = Math.round(birds.x - i * 9), by = Math.round(birds.y + (i % 2) * 6), up = Math.floor(birds.t * 6 + i) % 2;
+      R(lg, bx, by + (up ? 0 : 1), 2, 1, OUTLINE); R(lg, bx + 2, by + 1, 1, 1, OUTLINE); R(lg, bx + 3, by + (up ? 0 : 1), 2, 1, OUTLINE);
+    }
+    for (const p of weather) {
+      const x = Math.round(p.x), y = Math.round(p.y);
+      if (world.season === 'winter') R(lg, x, y, (p.t % 3) < 1.5 ? 2 : 1, (p.t % 3) < 1.5 ? 2 : 1, '#FFFFFF');
+      else if (world.season === 'fall') R(lg, x, y, 2, 1 + (Math.floor(p.t * 3) % 2), ['#D9832E', '#B85A2A', '#E8B04A'][Math.floor(p.x) % 3]);
+      else R(lg, x, y, 1, 1, SEASONS.spring.blossom);
+    }
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.imageSmoothingEnabled = false;
     g.drawImage(low, 0, 0, canvas.width, canvas.height);
-    drawSigns(t);
+    drawHighRes(t);
   }
 
-  function drawSigns(t) {
+  // Crisp text and markers drawn at full resolution on top of the pixels.
+  function drawHighRes(t) {
+    const sec = t / 1000;
     g.font = `${8.4 * S}px "Jersey 10", monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
+    // scrolling price ticker on the Stock Exchange roof
+    const ex = BUILDINGS.find((b) => b.id === 'exchange');
+    if (world.ticker.length) {
+      const sx = (ex.x * T + 8) * S, sy = (ex.y * T + 30) * S, sw = (ex.w * T - 16) * S, sh = 11 * S;
+      g.fillStyle = OUTLINE; g.fillRect(sx - S, sy - S, sw + 2 * S, sh + 2 * S);
+      g.fillStyle = '#1B2430'; g.fillRect(sx, sy, sw, sh);
+      g.save(); g.beginPath(); g.rect(sx, sy, sw, sh); g.clip();
+      g.font = `${8 * S}px "Jersey 10", monospace`; g.textAlign = 'left';
+      const parts = world.ticker;
+      let total = 0; const widths = parts.map((p) => { const w = g.measureText(`${p.t} ${p.p} ${p.c}   `).width; total += w; return w; });
+      let x = sx - ((REDUCED ? 0 : sec * 22 * S) % total);
+      for (let rep = 0; rep < 3 && x < sx + sw; rep++) for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        g.fillStyle = '#F4EFE0'; g.fillText(`${p.t} ${p.p}`, x, sy + sh / 2 + 0.4 * S);
+        const tw = g.measureText(`${p.t} ${p.p} `).width;
+        g.fillStyle = p.up ? '#7FD88A' : p.down ? '#FF8A7A' : '#B9C2CC'; g.fillText(p.c, x + tw, sy + sh / 2 + 0.4 * S);
+        x += widths[i];
+      }
+      g.restore();
+      g.font = `${8.4 * S}px "Jersey 10", monospace`; g.textAlign = 'center';
+    }
     for (const b of BUILDINGS) {
       if (!b.label) continue;
-      const fx = (b.door * T + 8) * S, fy = ((b.y + b.h) * T - 20) * S;
+      const fx = (b.door * T + 8) * S, fy = ((b.y + b.h) * T - (b.stand ? 4 : 20)) * S;
       const w = g.measureText(b.label).width + 6 * S, h = 10 * S;
       const x = fx - w / 2, y = fy - h - 2 * S;
       g.fillStyle = OUTLINE; g.fillRect(x - S, y - S, w + 2 * S, h + 2 * S);
-      g.fillStyle = guide === b.id ? '#F2D45C' : '#FBF6EA'; g.fillRect(x, y, w, h);
+      g.fillStyle = guide === b.id ? '#F2D45C' : b.stand ? '#FFF7D6' : '#FBF6EA'; g.fillRect(x, y, w, h);
       g.fillStyle = OUTLINE; g.fillText(b.label, fx, y + h / 2 + 0.4 * S);
+      const bob = REDUCED ? 0 : Math.round(Math.sin(t / 180) * 2) * S;
       if (guide === b.id) { // bouncing arrow above the sign
-        const bob = Math.round(Math.sin(t / 180) * 2) * S;
         const ay = y - 4 * S + bob, aw = 5 * S;
         g.beginPath(); g.moveTo(fx - aw, ay - 6 * S); g.lineTo(fx + aw, ay - 6 * S); g.lineTo(fx, ay); g.closePath();
         g.fillStyle = '#F2D45C'; g.fill(); g.lineWidth = S; g.strokeStyle = OUTLINE; g.stroke();
+      }
+      if (b.id === 'news' && world.tip) { // hot tip!
+        const bx = x + w + 3 * S, by = y - 6 * S + bob;
+        g.fillStyle = OUTLINE; g.fillRect(bx - S, by - S, 9 * S, 12 * S);
+        g.fillStyle = '#D0584A'; g.fillRect(bx, by, 7 * S, 10 * S);
+        g.fillStyle = '#FFFFFF'; g.fillText('!', bx + 3.5 * S, by + 5.4 * S);
+      }
+      if (b.id === 'bank' && world.savings && !REDUCED) { // twinkling sparkles: your savings are growing
+        for (let i = 0; i < 3; i++) {
+          const ph = (sec * 1.3 + i * 0.33) % 1;
+          if (ph > 0.6) continue;
+          const sx = x + ((i * 37 + 11) % Math.max(1, w)), sy = y - 4 * S - ((i * 13) % 9) * S, k = (ph < 0.3 ? ph : 0.6 - ph) * 10 * S;
+          g.fillStyle = '#F2D45C'; g.fillRect(sx - k / 2, sy - S / 2, k, S); g.fillRect(sx - S / 2, sy - k / 2, S, k);
+        }
       }
     }
   }
@@ -288,6 +486,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     const dt = Math.min(0.05, (t - last) / 1000);
     last = t;
     if (!paused) step(dt);
+    stepLife(dt);
     draw(t);
     requestAnimationFrame(loop);
   }
@@ -321,8 +520,17 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     resume() { paused = false; last = performance.now(); },
     setColor(c) { color = c; },
     setGuide(id) { guide = id; },
+    // Tell the town what's happening this year (season, hot tip, stand status, ticker prices).
+    setWorld(info) {
+      const seasonChanged = info.season && info.season !== world.season;
+      world = { ...world, ...info };
+      if (seasonChanged) scenery = drawStatic(world.season);
+    },
     resize,
     walkTo(id) { const b = BUILDINGS.find((q) => q.id === id); walkToTile(b.door, b.y + b.h, b); },
     pos() { return { x: me.x, y: me.y }; }, // used by automated tests
   };
 }
+
+// Shared with the building scenes.
+export { drawPerson, OUTLINE };

@@ -164,26 +164,6 @@ body:not(.playing) #town-wrap { visibility: hidden; }
 
 /* ---------- Lemonade Stand ---------- */
 .lemon-shift, .lemon-upgrades { display: flex; flex-direction: column; gap: 12px; }
-.queue {
-  display: flex; align-items: flex-end; gap: 8px; min-height: 64px; padding: 12px 12px 8px 64px; overflow: hidden; position: relative;
-  background: #A8A194 repeating-linear-gradient(90deg, #B3AC9F 0 10px, #9E978C 10px 12px); border: 3px solid var(--slate);
-}
-.queue::before { /* the stand */
-  content: ''; position: absolute; left: 6px; bottom: 6px; width: 46px; height: 44px;
-  background: linear-gradient(90deg, #E0B42E 0 25%, #fff 25% 50%, #E0B42E 50% 75%, #fff 75%) top/100% 10px no-repeat,
-    linear-gradient(#F6E7A8 0 0) bottom/100% 34px no-repeat;
-  border: 3px solid var(--slate);
-}
-.customer {
-  display: inline-block; width: 20px; height: 32px; flex: none;
-  background:
-    linear-gradient(#5A3A28 0 0) 4px 0 / 12px 5px no-repeat,
-    linear-gradient(#F2CDA6 0 0) 4px 5px / 12px 8px no-repeat,
-    linear-gradient(var(--shirt) 0 0) 2px 13px / 16px 11px no-repeat,
-    linear-gradient(#34507E 0 0) 5px 24px / 10px 8px no-repeat;
-}
-.customer:first-child { animation: bob .6s steps(2) infinite; }
-@keyframes bob { 50% { transform: translateY(-2px); } }
 .shift-count { display: flex; justify-content: space-between; font-size: 22px; }
 .shift-count b { color: var(--up); }
 .done-line { font-size: 24px; color: var(--up); }
@@ -291,6 +271,29 @@ body:not(.playing) #town-wrap { visibility: hidden; }
 .money-pop.down { color: var(--down); }
 @keyframes floatUp { from { opacity: 1; margin-top: 0; } to { opacity: 0; margin-top: -46px; } }
 .confetti { display: none; }
+.fireworks { position: fixed; inset: 0; width: 100vw; height: 100vh; image-rendering: pixelated; pointer-events: none; z-index: 60; }
+
+/* ---------- Pixel scenes inside buildings ---------- */
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.scene-box { padding: 6px; }
+canvas.scene { display: block; width: 100%; image-rendering: pixelated; }
+canvas.scene.banner { height: auto; }
+.home canvas.scene.banner, .results canvas.scene.banner { height: auto; border: 3px solid var(--slate); }
+canvas.stand-scene { border: 3px solid var(--slate); height: auto; }
+
+/* ---------- Little bits of life ---------- */
+.ex-row.flash-up { animation: flashUp 1.1s ease-out; }
+.ex-row.flash-down { animation: flashDown 1.1s ease-out; }
+@keyframes flashUp { 0%, 30% { background: #CFEACB; } 100% { background: transparent; } }
+@keyframes flashDown { 0%, 30% { background: #F6D3CD; } 100% { background: transparent; } }
+.cash-chip.bump { animation: bump .35s ease-out; }
+@keyframes bump { 40% { transform: scale(1.12); background: #FFF0B8; } }
+.btn:not(:disabled):active { transform: translateY(2px) scale(.97); }
+.results > * { animation: rise .35s ease-out both; }
+.results > *:nth-child(2) { animation-delay: .1s; } .results > *:nth-child(3) { animation-delay: .25s; }
+.results > *:nth-child(4) { animation-delay: .45s; } .results > *:nth-child(5) { animation-delay: .65s; }
+.results > *:nth-child(6) { animation-delay: .85s; } .results > *:nth-child(7) { animation-delay: 1s; } .results > *:nth-child(8) { animation-delay: 1.15s; }
+.serve:not(:disabled):active { transform: translateY(2px) scale(.95); }
 
 /* ---------- Smaller screens (tablets) ---------- */
 @media (max-width: 1000px) {

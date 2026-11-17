@@ -1,15 +1,17 @@
 // Lemonade Stand: run one shift a year and buy upgrades that grow the business.
 import * as E from '../engine.js';
 import { SETTINGS } from '../scenarios.js';
-import { h, money, sound, toast, moneyPop } from '../ui.js';
+import { h, money, sound, toast } from '../ui.js';
+import { lemonadeScene } from '../scenes.js';
 
 const B = SETTINGS.business;
-const SHIRTS = ['#C8664F', '#4A6A9A', '#3F7F6A', '#8C6BB1', '#D08A3A', '#2E8C8C', '#C97B9A'];
 
 export function lemonadeScreen(app) {
   const s = app.state;
   const yearsLeft = () => SETTINGS.years - s.year + 1;
   let served = 0;
+  const newScene = () => lemonadeScene({ color: app.color(), waiting: E.shiftDone(s) ? 0 : E.bizCustomers(s), owned: { ...s.biz.owned } });
+  let scene = newScene();
 
   // ---------- shift ----------
   const shiftBox = h('section', { class: 'box lemon-shift' });
@@ -18,23 +20,22 @@ export function lemonadeScreen(app) {
     if (E.shiftDone(s)) {
       shiftBox.replaceChildren(
         h('h2', {}, 'Today\'s shift'),
+        scene.el,
         h('p', { class: 'done-line' }, `Shift done! You earned ${money(s.biz.shifts[s.year])} this year.`),
         h('p', { class: 'hint' }, 'Come back next year for another shift. Your stand is closed until then.'),
         stats());
       return;
     }
-    const queue = h('div', { class: 'queue', 'aria-label': `${total - served} customers waiting` },
-      ...Array.from({ length: total - served }, (_, i) => h('i', { class: 'customer', style: `--shirt:${SHIRTS[(served + i) % SHIRTS.length]}` })));
     const serve = h('button', { class: 'btn primary big serve', type: 'button', id: 'serve-btn', onclick: () => {
       served += 1;
       sound('coin');
-      moneyPop(price, shiftBox.querySelector('.queue'));
+      scene.serve(price);
       if (served >= total) finish(); else renderShift();
     } }, 'Serve a customer');
     shiftBox.replaceChildren(
       h('h2', {}, 'Today\'s shift'),
+      scene.el,
       h('p', { class: 'hint' }, `Click to serve each customer in line. Each one pays ${money(price)}.`),
-      queue,
       h('div', { class: 'shift-count' }, h('span', {}, `Served ${served} of ${total}`), h('b', {}, `Earned ${money(served * price)}`)),
       h('div', { class: 'btn-row' }, serve,
         served > 0 ? h('button', { class: 'btn', type: 'button', onclick: finish }, 'Close up early') : null),
@@ -90,7 +91,11 @@ export function lemonadeScreen(app) {
       }));
   }
 
-  app.screenRefresh = () => { renderUpgrades(); if (E.shiftDone(s)) renderShift(); };
+  app.screenRefresh = () => {
+    renderUpgrades();
+    if (!E.shiftDone(s) && served === 0) { scene = newScene(); renderShift(); } // show new upgrades on the stand
+    else if (E.shiftDone(s)) renderShift();
+  };
   app.open({ title: 'Lemonade Stand', theme: 'lemonade', body: h('div', { class: 'two-col' }, shiftBox, upBox) });
   renderShift();
   renderUpgrades();

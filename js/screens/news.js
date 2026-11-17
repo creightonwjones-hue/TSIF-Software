@@ -1,6 +1,7 @@
 import { getScenario } from '../engine.js';
 import { SETTINGS } from '../scenarios.js';
 import { h, sound } from '../ui.js';
+import { newsScene } from '../scenes.js';
 
 // The headline popup at the start of each year.
 export function yearNewsPopup(app) {
@@ -28,6 +29,7 @@ export function newsScreen(app) {
   app.open({
     title: 'News Stand', theme: 'news',
     body: h('div', { class: 'news' },
+      h('div', { class: 'box scene-box' }, newsScene(!!ev.tip)),
       h('div', { class: 'paper big-paper' },
         h('small', { class: 'paper-head' }, `The Sprout City Times · Year ${s.year}`),
         h('p', { class: 'headline' }, ev.headline),

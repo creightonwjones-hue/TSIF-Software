@@ -75,6 +75,7 @@ export function sound(kind) {
     else if (kind === 'bad') { tone(330, 0, 0.15, 'sawtooth', 0.04); tone(247, 0.15, 0.3, 'sawtooth', 0.04); }
     else if (kind === 'door') { tone(523, 0, 0.08, 'triangle'); tone(784, 0.07, 0.12, 'triangle'); }
     else if (kind === 'bell') { tone(784, 0, 0.6, 'sine', 0.1); tone(1175, 0.02, 0.8, 'sine', 0.05); }
+    else if (kind === 'pop') { tone(220 + Math.random() * 200, 0, 0.12, 'square', 0.025); }
     else if (kind === 'tada') { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.12, 0.3, 'triangle', 0.08)); }
   } catch { /* audio not available */ }
 }
@@ -211,4 +212,75 @@ export function countUp(el, to, ms = 900) {
     if (p < 1) requestAnimationFrame(step); else el.textContent = money(to);
   };
   requestAnimationFrame(step);
+}
+
+// Animate a number from one value to another (used by the top bar).
+export function countBetween(el, from, to, ms = 600, fmt = money) {
+  if (from === to || !el) { if (el) el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round((from + (to - from) * e) * 100) / 100);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// Pixel fireworks over the whole screen for a few seconds.
+export function fireworks(ms = 3200) {
+  if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const SC = 4;
+  const c = h('canvas', { class: 'fireworks' });
+  document.body.append(c);
+  const w = Math.ceil(innerWidth / SC), ht = Math.ceil(innerHeight / SC);
+  c.width = w; c.height = ht;
+  const g = c.getContext('2d');
+  const cols = ['#F2D45C', '#D0584A', '#4F9A5A', '#7FB0D6', '#FFFFFF', '#E8A0C0'];
+  const sparks = [];
+  let next = 0;
+  const t0 = performance.now();
+  (function frame(t) {
+    const el = t - t0;
+    if (el > next && el < ms - 900) {
+      next = el + 280 + Math.random() * 260;
+      const x = w * (0.15 + Math.random() * 0.7), y = ht * (0.12 + Math.random() * 0.35), col = cols[(Math.random() * cols.length) | 0];
+      for (let i = 0; i < 26; i++) { const a = (i / 26) * Math.PI * 2, v = 0.6 + Math.random() * 0.9; sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, col }); }
+      sound('pop');
+    }
+    g.clearRect(0, 0, w, ht);
+    for (const s of sparks) { s.x += s.vx; s.y += s.vy; s.vy += 0.02; s.life -= 0.016; if (s.life > 0) { g.globalAlpha = s.life; g.fillStyle = s.col; g.fillRect(s.x | 0, s.y | 0, 1, 1); } }
+    g.globalAlpha = 1;
+    if (el < ms) requestAnimationFrame(frame); else c.remove();
+  })(t0);
+}
+
+// ---------- Optional background music: a short, quiet chiptune loop ----------
+let musicOn = false, musicTimer = null, musicCtx = null;
+try { musicOn = localStorage.getItem('sprout-music') === '1'; } catch { /* storage blocked */ }
+export const isMusicOn = () => musicOn;
+const MELODY = [ // [semitones above C5, beats]; -99 = rest
+  [7, 1], [4, 1], [5, 1], [7, 1], [9, 2], [7, 2], [4, 1], [2, 1], [4, 1], [5, 1], [4, 2], [-99, 2],
+  [7, 1], [4, 1], [5, 1], [7, 1], [12, 2], [11, 1], [9, 1], [7, 1], [5, 1], [4, 1], [2, 1], [0, 2], [-99, 2]];
+const BASS = [0, 0, 5, 5, 7, 7, 0, 0, 0, 0, 5, 5, 7, 7, 0, 0];
+function playLoop() {
+  if (!musicOn) return;
+  musicCtx = musicCtx || new (window.AudioContext || window.webkitAudioContext)();
+  const ctx = musicCtx, beat = 0.24, start = ctx.currentTime + 0.05;
+  const note = (semi, at, dur, type, vol, base) => {
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = type; o.frequency.value = base * Math.pow(2, semi / 12);
+    gn.gain.setValueAtTime(vol, at); gn.gain.exponentialRampToValueAtTime(0.0001, at + dur * 0.95);
+    o.connect(gn).connect(ctx.destination); o.start(at); o.stop(at + dur);
+  };
+  let t = start;
+  for (const [semi, beats] of MELODY) { if (semi > -99) note(semi, t, beats * beat, 'square', 0.018, 523.25); t += beats * beat; }
+  const total = t - start;
+  BASS.forEach((semi, i) => note(semi, start + i * (total / BASS.length), total / BASS.length, 'triangle', 0.03, 130.81));
+  musicTimer = setTimeout(playLoop, total * 1000 - 30);
+}
+export function setMusic(on) {
+  musicOn = on;
+  try { localStorage.setItem('sprout-music', on ? '1' : '0'); } catch { /* ignore */ }
+  clearTimeout(musicTimer);
+  if (on) { try { playLoop(); } catch { /* audio not available */ } }
 }
