@@ -123,3 +123,24 @@ After playtesting the live game, the user felt it was too kiddy (look and wordin
 - **Look:** "Night Market" video-game-menu style replaces Sunny Saturday — dark navy, neon lime/cyan/orange/pink, Russo One + Rubik fonts, a town at dusk with neon buildings and street lamps, and a scoreboard HUD.
 - **Wording:** news-ticker headlines, "PRO TIP" lessons, "YEAR 05 RECAP", "FINAL SCORE", and achievements (Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free). Companies got cooler names and ticker symbols. All the numbers are unchanged.
 - **Stock Exchange:** clean read-only list; tap a row to open one trade card with Buy/Sell.
+
+## Update 2026-11-18: cozy pixel "main street" redesign, Home, and a lemonade business
+The neon look and the isometric city-builder mockup were both rejected; the user compared three 2D mockups and picked **cozy pixel art** (Stardew-like), then asked to drop the log-cabin/brown feel.
+
+**Look (decided):**
+- Top-down pixel-art town on a 16px tile grid, scaled up crisply.
+- Buildings: brick bank, stone townhouse, cream-stone Stock Exchange with columns, painted-siding shops with awnings, cobblestone streets, hedges, lamp posts, a pond, and a tree border.
+- UI: light cream panels with dark slate pixel borders, green (Buy / primary) and red (Sell) accents, a soft-blue background behind building screens, and the **Jersey 10** pixel font (picked because its C/O and 5/9 are easy to tell apart).
+- Buildings open **full screen** (no side panel).
+
+**Town Clock → Home (decided):** walk home to end the year (like going to bed in Stardew). The "End year" button in the top bar stays as a shortcut.
+
+**Lemonade Stand business (decided):** teaches how a business grows, without making stocks useless.
+- One shift per year. Each shift has a fixed number of customers; you click to serve them. Every kid can finish, so **upgrades decide earnings, not click speed**.
+- Three one-time upgrades: Better recipe (+$1 per customer), Bigger stand (+5 customers), Hire a helper (earns a fixed amount each year with no clicking).
+- Upgrade costs are paid from cash and are not counted as assets, so each upgrade is a real choice against investing ("pays back in ~N years").
+- Earnings land in cash. Cash doesn't grow, so investing the profits is what makes money grow.
+- Balance rule, enforced by tests: business-only ≲ investing-only < doing both, in every scenario.
+- New achievement: **Business Owner** — ran your shift every year.
+
+**Builder's calls:** exact business numbers (set in `js/scenarios.js` → `SETTINGS.business` and tuned by tests); Lemonade Stand placed on the south side of the street; 4-step tutorial: Bank → Exchange → Lemonade Stand → Home; tap-to-walk uses tile pathfinding so kids can tap any building.
