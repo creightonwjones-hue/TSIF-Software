@@ -39,8 +39,8 @@ export const app = {
     const head = modal ? null : h('header', { class: 'screen-head' },
       h('h2', {}, h('span', { class: 'head-emoji' }, emoji), title),
       h('div', { class: 'head-right' },
-        h('span', { class: 'pill cash-pill', id: 'screen-cash' }, `💵 Cash: ${money(this.state.cash)}`),
-        closable ? h('button', { class: 'btn leave', onclick: () => { sound('door'); close(); } }, '🚪 Leave') : null));
+        h('span', { class: 'pill cash-pill', id: 'screen-cash' }, `◈ CASH ${money(this.state.cash)}`),
+        closable ? h('button', { class: 'btn leave', onclick: () => { sound('door'); close(); } }, 'EXIT ✕') : null));
     const panel = h('div', { class: modal ? 'modal-card pop' : 'screen slide-up' }, head, h('div', { class: 'screen-body' }, body));
     overlay.append(panel);
     overlay._close = closable ? close : null;
@@ -57,14 +57,14 @@ export const app = {
   refresh() {
     this.renderHud();
     const cash = document.getElementById('screen-cash');
-    if (cash) cash.textContent = `💵 Cash: ${money(this.state.cash)}`;
+    if (cash) cash.textContent = `◈ CASH ${money(this.state.cash)}`;
     this.screenRefresh?.();
     this.save();
   },
 
   // Run an engine action; show the error kindly if it fails.
   act(result, goodSound = 'coin') {
-    if (!result.ok) { sound('bad'); toast(`🙈 ${result.error}`, 'error'); return false; }
+    if (!result.ok) { sound('bad'); toast(`⚠️ ${result.error}`, 'error'); return false; }
     sound(goodSound);
     this.refresh();
     return true;
@@ -73,7 +73,7 @@ export const app = {
   lessonOnce(key, text) {
     if (this.seenLessons.has(key)) return;
     this.seenLessons.add(key);
-    toast(`💡 ${text}`, 'lesson');
+    toast(text, 'lesson');
     this.save();
   },
 
@@ -81,20 +81,23 @@ export const app = {
     const s = this.state;
     if (!s) { hud.innerHTML = ''; return; }
     const year = Math.min(s.year, SETTINGS.years);
-    hud.innerHTML = '';
-    hud.append(
+    const pad = (n) => String(n).padStart(2, '0');
+    const worth = E.netWorth(s);
+    const growth = worth / SETTINGS.startingCash - 1;
+    hud.replaceChildren(
       h('div', { class: 'hud-left' },
         h('span', { class: 'hud-avatar' }, s.avatar),
-        h('div', { class: 'hud-name' }, h('b', {}, s.nickname), h('small', {}, 'Sprout City')),
-        h('div', { class: 'year-badge' }, `📅 Year ${year} of ${SETTINGS.years}`,
-          h('span', { class: 'year-dots' }, ...Array.from({ length: SETTINGS.years }, (_, i) => h('i', { class: i < year - 1 ? 'done' : i === year - 1 ? 'now' : '' }))))),
+        h('div', { class: 'hud-name' }, h('b', {}, s.nickname), h('small', {}, 'SPROUT CITY')),
+        h('div', { class: 'year-badge' },
+          h('small', {}, 'YEAR'), h('b', {}, `${pad(year)}`, h('span', { class: 'of' }, `/${SETTINGS.years}`)),
+          h('span', { class: 'year-bar' }, h('i', { style: `width:${(year / SETTINGS.years) * 100}%` })))),
       h('div', { class: 'hud-stats' },
-        stat('💵', 'Cash', money(s.cash)),
-        stat('📊', 'Net worth', money(E.netWorth(s)), 'big'),
-        s.debt > 0 ? stat('💳', 'You owe', money(s.debt), 'owe') : null),
+        stat('CASH', money(s.cash)),
+        stat('NET WORTH', money(worth), 'big', h('span', { class: `chg ${growth >= 0 ? 'up' : 'down'}` }, `${growth >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(growth * 100))}%`)),
+        s.debt > 0 ? stat('DEBT', money(s.debt), 'owe') : null),
       h('div', { class: 'hud-actions' },
-        h('button', { class: 'btn small ghost', title: 'Read the news', onclick: () => this.enter('news') }, '📰 News'),
-        h('button', { class: 'btn small', title: 'Go to the Town Clock to end the year', onclick: () => this.enter('clock') }, '🕰️ End Year'),
+        h('button', { class: 'btn small ghost', title: 'Read the news', onclick: () => this.enter('news') }, '📰 NEWS'),
+        h('button', { class: 'btn small primary', title: 'End the year', onclick: () => this.enter('clock') }, 'END YEAR ⏩'),
         h('button', { class: 'btn small ghost icon', title: isMuted() ? 'Sound off' : 'Sound on', 'aria-label': 'Toggle sound',
           onclick: () => { setMuted(!isMuted()); this.renderHud(); } }, isMuted() ? '🔇' : '🔊')));
   },
@@ -113,9 +116,9 @@ export const app = {
   setTutorial(n) {
     this.tutorial = n;
     const tips = [
-      '👣 Use the arrow keys (or tap the map) to walk. Visit the 🏦 Bank!',
-      '👍 Nice! Now walk to the 📈 Stock Exchange to buy stocks and bonds.',
-      '🕰️ When you\'re done for the year, walk into the Town Clock to end the year.',
+      'MOVE with arrow keys / WASD (or tap the map). First stop: the 🏦 BANK',
+      'Next: head to the 📈 STOCK EXCHANGE to buy stocks and bonds',
+      'Done for the year? Walk into the 🕰️ TOWN CLOCK to end it',
     ];
     const bar = document.getElementById('tutorial');
     bar.textContent = tips[n] || '';
@@ -153,12 +156,15 @@ export const app = {
   },
 };
 
-function stat(icon, label, value, cls = '') {
-  return h('div', { class: `stat ${cls}` }, h('small', {}, `${icon} ${label}`), h('b', {}, value));
+function stat(label, value, cls = '', extra = null) {
+  return h('div', { class: `stat ${cls}` }, h('small', {}, label), h('b', {}, value), extra);
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && overlay._close) { sound('door'); overlay._close(); }
+  if (e.key !== 'Escape') return;
+  const trade = overlay.querySelector('.trade-layer');
+  if (trade) { sound('click'); trade._close(); return; }
+  if (overlay._close) { sound('door'); overlay._close(); }
 });
 
 window.sproutApp = app; // handy for testing in the browser console

@@ -117,3 +117,9 @@ Exact starting prices and event effects (tune so a diversified, patient player b
 2. Play the full game with Playwright at 1366×768 and at tablet size: start → walk to the Bank (deposit, borrow) → Exchange (buy stocks and a bond) → Clock, repeated for 10 years → end screen. Screenshot each screen and check readability and that nothing overflows.
 3. Load once, go offline, and confirm the game still plays.
 4. Tell the user how to turn on GitHub Pages and share the link.
+
+## Update 2026-11-17: cooler look + simpler Stock Exchange
+After playtesting the live game, the user felt it was too kiddy (look and wording) and the Stock Exchange was an overload.
+- **Look:** "Night Market" video-game-menu style replaces Sunny Saturday — dark navy, neon lime/cyan/orange/pink, Russo One + Rubik fonts, a town at dusk with neon buildings and street lamps, and a scoreboard HUD.
+- **Wording:** news-ticker headlines, "PRO TIP" lessons, "YEAR 05 RECAP", "FINAL SCORE", and achievements (Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free). Companies got cooler names and ticker symbols. All the numbers are unchanged.
+- **Stock Exchange:** clean read-only list; tap a row to open one trade card with Buy/Sell.

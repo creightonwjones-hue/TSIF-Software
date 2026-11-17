@@ -6,22 +6,25 @@ const SPEED = 230; // pixels per second
 const R = 18;      // avatar radius
 
 const C = {
-  grass: '#7BD389', grassDark: '#6CC47B', road: '#F4E1B5', roadLine: '#FFF6DE',
-  navy: '#2B2D42', coral: '#FF8A5B', yellow: '#FFD23F', sky: '#8ED1FC', white: '#FFFFFF',
+  ground: '#14262A', groundDot: '#1C3438', road: '#22284A', curb: '#323A6A', lane: '#3CE0FF',
+  body: '#1C2248', band: '#121733', text: '#F2F4FF', lime: '#B8FF3C', cyan: '#3CE0FF',
+  gold: '#FFD23F', orange: '#FF7A3C', pink: '#FF3CAC', window: '#FFE58A', door: '#0D1026',
 };
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
-// Buildings. door: where you walk in. side: which wall the door is on.
+// Buildings. side: which wall the door is on. neon: glow color.
 export const BUILDINGS = [
-  { id: 'bank', name: 'BANK', emoji: '🏦', x: 70, y: 70, w: 240, h: 170, color: '#FFD23F', roof: '#E0A800', side: 'bottom', enter: true },
-  { id: 'exchange', name: 'STOCK EXCHANGE', emoji: '📈', x: 610, y: 50, w: 290, h: 190, color: '#8ED1FC', roof: '#4BA3D9', side: 'bottom', enter: true, columns: true },
-  { id: 'news', name: 'NEWS STAND', emoji: '📰', x: 90, y: 420, w: 180, h: 120, color: '#FF8A5B', roof: '#E0633A', side: 'top', enter: true, awning: true },
-  { id: 'clock', name: 'TOWN CLOCK', emoji: '🕰️', x: 660, y: 405, w: 130, h: 160, color: '#F7F3FF', roof: '#B39DDB', side: 'top', enter: true, tower: true },
+  { id: 'bank', name: 'BANK', emoji: '🏦', x: 70, y: 70, w: 240, h: 170, neon: C.gold, side: 'bottom', enter: true },
+  { id: 'exchange', name: 'STOCK EXCHANGE', emoji: '📈', x: 610, y: 50, w: 290, h: 190, neon: C.lime, side: 'bottom', enter: true, columns: true },
+  { id: 'news', name: 'NEWS STAND', emoji: '📰', x: 90, y: 420, w: 180, h: 120, neon: C.orange, side: 'top', enter: true },
+  { id: 'clock', name: 'TOWN CLOCK', emoji: '🕰️', x: 660, y: 405, w: 130, h: 160, neon: C.cyan, side: 'top', enter: true, tower: true },
   // decoration only
-  { id: 'burgers', name: 'BURGERS', emoji: '🍔', x: 345, y: 110, w: 105, h: 120, color: '#FFB4A2', roof: '#E5989B', side: 'none' },
-  { id: 'slime', name: 'SLIMECO', emoji: '🧠', x: 320, y: 430, w: 120, h: 110, color: '#B9FBC0', roof: '#7BD389', side: 'none' },
-  { id: 'frosty', name: 'FROSTY', emoji: '🍦', x: 830, y: 430, w: 95, h: 95, color: '#FFC8DD', roof: '#FF8FB1', side: 'none' },
+  { id: 'burgers', name: 'BURGERS', emoji: '🍔', x: 345, y: 110, w: 105, h: 120, neon: C.pink, side: 'none' },
+  { id: 'slime', name: 'SLIMECO', emoji: '🧪', x: 320, y: 430, w: 120, h: 110, neon: '#7CFF6B', side: 'none' },
+  { id: 'frosty', name: 'FROSTY', emoji: '🍦', x: 830, y: 430, w: 95, h: 95, neon: '#B69CFF', side: 'none' },
 ];
-const TREES = [[40, 380], [40, 470], [560, 120], [560, 200], [600, 470], [585, 560], [945, 262], [935, 570], [30, 262], [300, 572]];
+const TREES = [[40, 380], [40, 470], [560, 120], [600, 470], [585, 560], [935, 570], [300, 572]];
+const LAMPS = [[30, 268], [200, 268], [420, 268], [580, 268], [940, 268], [60, 382], [440, 382], [600, 382], [880, 382], [560, 200]];
 const ROADS = [
   { x: 0, y: 285, w: WORLD.w, h: 80 },   // main street
   { x: 470, y: 0, w: 80, h: WORLD.h },   // cross street
@@ -76,102 +79,102 @@ export function createTown(canvas, { avatar = '🦊', onEnter = () => {} } = {})
     c.width = Math.round(WORLD.w * k); c.height = Math.round(WORLD.h * k);
     const s = c.getContext('2d');
     s.scale(k, k);
-    s.fillStyle = C.grass; s.fillRect(0, 0, WORLD.w, WORLD.h);
-    s.fillStyle = C.grassDark;
-    for (let y = 10; y < WORLD.h; y += 40) for (let x = (y / 40) % 2 ? 10 : 30; x < WORLD.w; x += 40) {
-      s.beginPath(); s.arc(x, y, 2, 0, Math.PI * 2); s.fill();
+    s.fillStyle = C.ground; s.fillRect(0, 0, WORLD.w, WORLD.h);
+    s.fillStyle = C.groundDot;
+    for (let y = 12; y < WORLD.h; y += 24) for (let x = 12; x < WORLD.w; x += 24) s.fillRect(x, y, 2, 2);
+    // roads with curbs
+    for (const r of ROADS) {
+      s.fillStyle = C.curb; s.fillRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
     }
     for (const r of ROADS) { s.fillStyle = C.road; s.fillRect(r.x, r.y, r.w, r.h); }
-    s.strokeStyle = C.roadLine; s.lineWidth = 5; s.setLineDash([22, 18]);
-    s.beginPath(); s.moveTo(0, 325); s.lineTo(470, 325); s.moveTo(550, 325); s.lineTo(WORLD.w, 325);
-    s.moveTo(510, 0); s.lineTo(510, 285); s.moveTo(510, 365); s.lineTo(510, WORLD.h); s.stroke();
-    s.setLineDash([]);
     // sidewalks to each door
     for (const b of BUILDINGS) {
       if (!b.enter) continue;
       const cx = b.x + b.w / 2;
-      s.fillStyle = C.road;
-      if (b.side === 'bottom') s.fillRect(cx - 26, b.y + b.h, 52, 285 - (b.y + b.h));
-      else s.fillRect(cx - 26, 365, 52, b.y - 365);
+      s.fillStyle = C.curb;
+      if (b.side === 'bottom') s.fillRect(cx - 24, b.y + b.h, 48, 281 - (b.y + b.h));
+      else s.fillRect(cx - 24, 369, 48, b.y - 369);
+    }
+    // glowing lane lines
+    glow(s, C.lane, 10, () => {
+      s.strokeStyle = C.lane; s.lineWidth = 3; s.setLineDash([22, 18]);
+      s.beginPath(); s.moveTo(0, 325); s.lineTo(470, 325); s.moveTo(550, 325); s.lineTo(WORLD.w, 325);
+      s.moveTo(510, 0); s.lineTo(510, 285); s.moveTo(510, 365); s.lineTo(510, WORLD.h); s.stroke();
+      s.setLineDash([]);
+    });
+    for (const [lx, ly] of LAMPS) { // light pools under lamps
+      const g = s.createRadialGradient(lx, ly, 0, lx, ly, 70);
+      g.addColorStop(0, 'rgba(255,229,138,.22)'); g.addColorStop(1, 'rgba(255,229,138,0)');
+      s.fillStyle = g; s.fillRect(lx - 70, ly - 70, 140, 140);
     }
     for (const [tx, ty] of TREES) drawTree(s, tx, ty);
     for (const b of BUILDINGS) drawBuilding(s, b);
+    for (const [lx, ly] of LAMPS) drawLamp(s, lx, ly);
     return c;
   }
 
-  function outline(s, w = 4) { s.lineWidth = w; s.strokeStyle = C.navy; s.lineJoin = 'round'; s.stroke(); }
+  function glow(s, color, blur, fn) { s.save(); s.shadowColor = color; s.shadowBlur = blur; fn(); s.restore(); }
   function rrect(s, x, y, w, h, r) { s.beginPath(); s.roundRect(x, y, w, h, r); }
 
   function drawTree(s, x, y) {
-    s.fillStyle = '#8D6E63'; rrect(s, x - 5, y + 4, 10, 18, 3); s.fill(); outline(s, 3);
-    s.fillStyle = '#4CAF6A'; s.beginPath(); s.arc(x, y - 4, 20, 0, Math.PI * 2); s.fill(); outline(s, 3);
-    s.fillStyle = 'rgba(255,255,255,.25)'; s.beginPath(); s.arc(x - 7, y - 11, 6, 0, Math.PI * 2); s.fill();
+    s.fillStyle = '#3A2E2A'; s.fillRect(x - 4, y + 6, 8, 16);
+    s.fillStyle = '#1D5A46'; s.beginPath(); s.arc(x, y - 4, 20, 0, Math.PI * 2); s.fill();
+    s.strokeStyle = '#2E8A68'; s.lineWidth = 2; s.stroke();
+    s.fillStyle = 'rgba(184,255,60,.12)'; s.beginPath(); s.arc(x - 6, y - 10, 8, 0, Math.PI * 2); s.fill();
+  }
+
+  function drawLamp(s, x, y) {
+    s.fillStyle = '#4A527F'; s.fillRect(x - 2, y - 22, 4, 24);
+    glow(s, C.window, 14, () => { s.fillStyle = C.window; s.beginPath(); s.arc(x, y - 24, 5, 0, Math.PI * 2); s.fill(); });
   }
 
   function drawBuilding(s, b) {
-    // shadow
-    s.fillStyle = 'rgba(43,45,66,.18)'; rrect(s, b.x + 6, b.y + 10, b.w, b.h, 14); s.fill();
-    // body
-    s.fillStyle = b.color; rrect(s, b.x, b.y, b.w, b.h, 14); s.fill(); outline(s);
-    // Sign band: on top for buildings whose door is at the bottom,
-    // and at the bottom for buildings whose door faces up toward the road.
-    const top = b.side !== 'top';
-    const roofH = b.tower ? 44 : 38;
-    const bandY = top ? b.y : b.y + b.h - roofH;
-    s.save(); rrect(s, b.x, b.y, b.w, b.h, 14); s.clip();
-    s.fillStyle = b.roof; s.fillRect(b.x, bandY, b.w, roofH);
-    if (b.awning) {
-      for (let i = 0; i < b.w; i += 24) { s.fillStyle = (i / 24) % 2 ? C.white : b.roof; s.fillRect(b.x + i, bandY, 24, roofH); }
-    }
+    const top = b.side !== 'top';      // sign band on top unless the door faces up
+    const bandH = b.tower ? 40 : 34;
+    const bandY = top ? b.y : b.y + b.h - bandH;
+    const cx = b.x + b.w / 2;
+    // body + neon outline
+    s.fillStyle = 'rgba(0,0,0,.35)'; rrect(s, b.x + 5, b.y + 8, b.w, b.h, 12); s.fill();
+    s.fillStyle = C.body; rrect(s, b.x, b.y, b.w, b.h, 12); s.fill();
+    glow(s, b.neon, 16, () => { s.strokeStyle = b.neon; s.lineWidth = 3; rrect(s, b.x, b.y, b.w, b.h, 12); s.stroke(); });
+    // sign band
+    s.save(); rrect(s, b.x, b.y, b.w, b.h, 12); s.clip();
+    s.fillStyle = C.band; s.fillRect(b.x, bandY, b.w, bandH);
     s.restore();
-    const lineY = top ? b.y + roofH : bandY;
-    s.beginPath(); s.moveTo(b.x, lineY); s.lineTo(b.x + b.w, lineY); outline(s, 3);
-    s.font = `700 ${b.w >= 170 ? 17 : 13}px Fredoka, "Trebuchet MS", sans-serif`;
+    s.strokeStyle = b.neon; s.lineWidth = 2;
+    s.beginPath(); const ly = top ? bandY + bandH : bandY; s.moveTo(b.x + 3, ly); s.lineTo(b.x + b.w - 3, ly); s.stroke();
+    s.font = `400 ${b.w >= 170 ? 16 : 12}px "Russo One", Impact, sans-serif`;
     s.textAlign = 'center'; s.textBaseline = 'middle';
-    if (b.awning) { // readable label on the stripes
-      const tw = s.measureText(b.name).width + 18;
-      s.fillStyle = C.white; rrect(s, b.x + b.w / 2 - tw / 2, bandY + 7, tw, roofH - 14, 8); s.fill(); outline(s, 2.5);
-    }
-    s.fillStyle = C.navy; s.fillText(b.name, b.x + b.w / 2, bandY + roofH / 2 + 1);
+    glow(s, b.neon, 12, () => { s.fillStyle = b.neon; s.fillText(b.name, cx, bandY + bandH / 2 + 1); });
 
-    // free area for the picture (between the door and the sign band)
     const doorH = 40;
-    const areaTop = top ? b.y + roofH : b.y + (b.enter ? doorH : 0);
+    const areaTop = top ? b.y + bandH : b.y + (b.enter ? doorH : 0);
     const areaBot = top ? b.y + b.h - (b.enter ? doorH : 0) : bandY;
     const midY = (areaTop + areaBot) / 2;
-    const cx = b.x + b.w / 2;
-    if (b.tower) { // clock face
+    // lit windows
+    if (b.id === 'bank' || b.columns) {
+      const n = b.columns ? 4 : 2;
+      for (let i = 0; i < n; i++) {
+        const wx = b.x + 22 + i * ((b.w - 44 - 34) / (n - 1));
+        if (Math.abs(wx + 17 - cx) < 45) continue;
+        glow(s, C.window, 10, () => { s.fillStyle = 'rgba(255,229,138,.85)'; rrect(s, wx, b.y + b.h - 72, 34, 28, 4); s.fill(); });
+      }
+    }
+    if (b.tower) { // glowing clock face
       const r = Math.min(30, (areaBot - areaTop) / 2 - 6);
-      s.fillStyle = C.white; s.beginPath(); s.arc(cx, midY, r, 0, Math.PI * 2); s.fill(); outline(s, 3);
-      s.beginPath(); s.moveTo(cx, midY); s.lineTo(cx, midY - r * 0.7);
-      s.moveTo(cx, midY); s.lineTo(cx + r * 0.5, midY + r * 0.2); outline(s, 4);
+      glow(s, C.cyan, 14, () => { s.strokeStyle = C.cyan; s.lineWidth = 3; s.beginPath(); s.arc(cx, midY, r, 0, Math.PI * 2); s.stroke(); });
+      s.strokeStyle = C.text; s.lineWidth = 3; s.lineCap = 'round';
+      s.beginPath(); s.moveTo(cx, midY); s.lineTo(cx, midY - r * 0.7); s.moveTo(cx, midY); s.lineTo(cx + r * 0.5, midY + r * 0.2); s.stroke();
     } else {
-      const size = Math.min(b.enter ? 48 : 38, areaBot - areaTop - 8);
-      s.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      const size = Math.min(b.enter ? 44 : 34, areaBot - areaTop - 8);
+      s.font = `${size}px ${EMOJI_FONT}`;
       s.fillText(b.emoji, cx, midY + 2);
     }
-    if (b.columns) {
-      for (let i = 0; i < 6; i++) {
-        const px = b.x + 28 + i * ((b.w - 56) / 5);
-        if (Math.abs(px - cx) < 30) continue; // leave room for the door
-        s.fillStyle = C.white; rrect(s, px - 7, b.y + b.h - 70, 14, 52, 4); s.fill(); outline(s, 2.5);
-      }
-    }
-    if (b.id === 'bank') {
-      for (const wx of [b.x + 30, b.x + b.w - 70]) { s.fillStyle = C.sky; rrect(s, wx, b.y + b.h - 70, 40, 34, 6); s.fill(); outline(s, 3); }
-    }
-    // door
+    // door with neon frame
     if (b.enter) {
-      const dx = cx - 22;
-      if (top) {
-        const dy = b.y + b.h - doorH;
-        s.fillStyle = '#795548'; rrect(s, dx, dy, 44, doorH, [12, 12, 0, 0]); s.fill(); outline(s, 3);
-        s.fillStyle = C.yellow; s.beginPath(); s.arc(dx + 34, dy + 22, 3.5, 0, Math.PI * 2); s.fill();
-      } else {
-        s.fillStyle = '#795548'; rrect(s, dx, b.y, 44, doorH - 4, [0, 0, 12, 12]); s.fill(); outline(s, 3);
-        s.fillStyle = C.yellow; s.beginPath(); s.arc(dx + 34, b.y + 16, 3.5, 0, Math.PI * 2); s.fill();
-        s.fillStyle = '#A1887F'; rrect(s, dx - 4, b.y - 12, 52, 12, 5); s.fill(); outline(s, 3);
-      }
+      const dx = cx - 21, dy = top ? b.y + b.h - doorH : b.y;
+      s.fillStyle = C.door; rrect(s, dx, dy, 42, doorH, top ? [8, 8, 0, 0] : [0, 0, 8, 8]); s.fill();
+      glow(s, b.neon, 10, () => { s.strokeStyle = b.neon; s.lineWidth = 2.5; rrect(s, dx, dy, 42, doorH, top ? [8, 8, 0, 0] : [0, 0, 8, 8]); s.stroke(); });
     }
   }
 
@@ -182,27 +185,34 @@ export function createTown(canvas, { avatar = '🦊', onEnter = () => {} } = {})
     g.drawImage(staticLayer, 0, 0);
     g.setTransform(k, 0, 0, k, 0, 0);
 
-    // guide arrow
+    // guide chevron
     if (guide) {
       const b = BUILDINGS.find((x) => x.id === guide);
       const sp = doorSpot(b);
-      const bounce = Math.sin(t / 180) * 6;
-      const ay = b.side === 'bottom' ? sp.y + 8 + bounce : sp.y - 8 - bounce;
-      g.font = '34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(b.side === 'bottom' ? '⬆️' : '⬇️', sp.x, ay);
+      const dir = b.side === 'bottom' ? -1 : 1; // -1 = points up
+      const bounce = Math.sin(t / 160) * 5;
+      const y0 = sp.y + (dir < 0 ? 10 : -10) - dir * bounce;
+      const pulse = 0.6 + 0.4 * Math.sin(t / 220);
+      glow(g, C.lime, 18 * pulse, () => {
+        g.strokeStyle = C.lime; g.lineWidth = 5; g.lineCap = 'round'; g.lineJoin = 'round';
+        for (const off of [0, 12]) {
+          g.globalAlpha = off ? 0.5 : 1;
+          g.beginPath(); g.moveTo(sp.x - 14, y0 + off * -dir + 8 * -dir); g.lineTo(sp.x, y0 + off * -dir); g.lineTo(sp.x + 14, y0 + off * -dir + 8 * -dir); g.stroke();
+        }
+        g.globalAlpha = 1;
+      });
     }
     // tap target marker
     if (target) {
-      g.strokeStyle = 'rgba(43,45,66,.5)'; g.lineWidth = 3;
+      g.strokeStyle = 'rgba(60,224,255,.7)'; g.lineWidth = 2.5;
       g.beginPath(); g.ellipse(target.x, target.y + 12, 14, 6, 0, 0, Math.PI * 2); g.stroke();
     }
-    // avatar
-    const bob = Math.sin(me.bob) * 3;
-    g.fillStyle = 'rgba(43,45,66,.25)'; g.beginPath(); g.ellipse(me.x, me.y + R, R * 0.9, 6, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = C.white; g.beginPath(); g.arc(me.x, me.y - 6 + bob, R + 4, 0, Math.PI * 2); g.fill();
-    g.lineWidth = 4; g.strokeStyle = C.navy; g.stroke();
-    g.font = `${R * 2}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    // avatar: dark disc + neon ring
+    const bob = Math.sin(me.bob) * 2.5;
+    g.fillStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.ellipse(me.x, me.y + R, R * 0.9, 6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#10142E'; g.beginPath(); g.arc(me.x, me.y - 6 + bob, R + 4, 0, Math.PI * 2); g.fill();
+    glow(g, C.lime, 14, () => { g.strokeStyle = C.lime; g.lineWidth = 3; g.beginPath(); g.arc(me.x, me.y - 6 + bob, R + 4, 0, Math.PI * 2); g.stroke(); });
+    g.font = `${R * 1.8}px ${EMOJI_FONT}`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.save(); g.translate(me.x, me.y - 4 + bob); g.scale(me.face, 1); g.fillText(avatar, 0, 0); g.restore();
   }
