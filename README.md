@@ -6,16 +6,16 @@ Software for the TSIF Club
 Each kid starts with **$1,000** and has **10 years** to grow it. They walk around a cartoon town:
 
 - 🏦 **Bank**: put money in savings (safe, +3%/yr) or take out a loan (costs 8%/yr)
-- 📈 **Stock Exchange**: buy and sell 12 made-up companies and 3 bonds
+- 📈 **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds — tap one to trade
 - 📰 **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
 - 🕰️ **Town Clock**: end the year and see what happened
 
-At the end, kids see their **net worth** (show it to the club leader; the biggest wins 🏆 Top Grower) and the awards they earned: Best Diversified, Steady Hands, Smart Saver, Rumor Buster, Debt Free.
+At the end, kids see their **final score** (net worth — show it to the club leader; the highest wins 🏆 Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free.
 
 ### Running it in class
 - Play link: **https://creightonwjones-hue.github.io/TSIF-Software/**
 - Everyone should play the **same game** so it's fair. Pick it on the start screen, or share a link like `…/TSIF-Software/?scenario=2`.
-  - Game 1: The Great Sprout Slump · Game 2: Wild Weather · Game 3: Boom Town
+  - Game 1: The Great Slump · Game 2: Wild Weather · Game 3: Boom Town
 - Controls: arrow keys / WASD, or tap the map. The **End Year** button in the top bar works too.
 - If a kid refreshes the page, they can pick up where they left off (saved on their device only).
 - No accounts, no data sent anywhere. Kids should use a nickname, not their full name.
@@ -46,5 +46,5 @@ Then open http://localhost:8000.
 | `js/town.js` | The walkable town map |
 | `js/screens/*.js` | Each building's screen, plus start and end screens |
 | `js/main.js` | Wires it all together |
-| `css/style.css` | Colors and layout ("Sunny Saturday" theme) |
+| `css/style.css` | Colors and layout ("Night Market" neon theme) |
 | `tests/` | Automated tests for the engine |

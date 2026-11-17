@@ -255,11 +255,11 @@ export function advanceYear(state) {
 }
 
 export const AWARD_INFO = {
-  diversified: { emoji: '🧺', name: 'Best Diversified', desc: 'Owned 4+ different investments in most years.' },
-  steady:      { emoji: '💎', name: 'Steady Hands',     desc: 'Didn\'t panic-sell stocks after the crash.' },
-  saver:       { emoji: '🐷', name: 'Smart Saver',      desc: 'Kept money safe in savings or bonds every year.' },
-  rumor:       { emoji: '🕵️', name: 'Rumor Buster',     desc: 'Didn\'t fall for the hot-tip hype.' },
-  debtFree:    { emoji: '💳', name: 'Debt Free',        desc: 'Finished the game owing the bank nothing.' },
+  diversified: { emoji: '🧺', name: 'Spread the Risk', desc: 'Held 4+ different investments most years.' },
+  steady:      { emoji: '💎', name: 'Steady Hands',    desc: 'Didn\'t panic-sell after the crash.' },
+  saver:       { emoji: '🛡️', name: 'Safety Net',      desc: 'Kept money in savings or bonds every year.' },
+  rumor:       { emoji: '🕵️', name: 'Hype Detector',   desc: 'Didn\'t fall for the hot tip.' },
+  debtFree:    { emoji: '🔓', name: 'Debt Free',       desc: 'Finished owing the bank nothing.' },
 };
 
 export function computeAwards(state) {

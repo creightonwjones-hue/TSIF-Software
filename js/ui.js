@@ -38,7 +38,7 @@ export function changeTag(change) {
 }
 
 export const RISK = [null,
-  { dots: '🟢', label: 'Steady' },
+  { dots: '🟢', label: 'Safe' },
   { dots: '🟡', label: 'Medium' },
   { dots: '🟠', label: 'Bumpy' },
   { dots: '🔴', label: 'Wild' }];
@@ -83,7 +83,9 @@ export function sound(kind) {
 export function toast(text, kind = 'info') {
   const box = document.getElementById('toasts');
   while (box.children.length >= 2) box.firstChild.remove();
-  const t = h('div', { class: `toast ${kind}` }, text);
+  const t = kind === 'lesson'
+    ? h('div', { class: 'toast lesson' }, h('b', { class: 'toast-tag' }, 'PRO TIP'), h('span', {}, text))
+    : h('div', { class: `toast ${kind}` }, text);
   box.append(t);
   setTimeout(() => t.classList.add('out'), kind === 'lesson' ? 5200 : 2600);
   setTimeout(() => t.remove(), kind === 'lesson' ? 5800 : 3200);
@@ -97,7 +99,7 @@ export function confetti(count = 120) {
   c.width = innerWidth * dpr; c.height = innerHeight * dpr;
   const g = c.getContext('2d');
   g.scale(dpr, dpr);
-  const colors = ['#FF8A5B', '#FFD23F', '#2ECC71', '#8ED1FC', '#FF6FB5', '#7BD389'];
+  const colors = ['#B8FF3C', '#3CE0FF', '#FF3CAC', '#FFD23F', '#FF7A3C', '#FFFFFF'];
   const bits = Array.from({ length: count }, () => ({
     x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * 0.5,
     vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3,
@@ -164,4 +166,15 @@ export function amountPicker({ value = 1, step = 1, min = 1, max = () => Infinit
     ...quick.map((q) => h('button', { class: 'quick', type: 'button', onclick: () => { sound('click'); set(typeof q.value === 'function' ? q.value() : q.value); } }, q.label)),
   );
   return { el: wrap, get, set };
+}
+
+// ---------- Floating "+$84" pop near an element ----------
+export function moneyPop(amount, anchor) {
+  if (!amount) return;
+  const r = (anchor || document.body).getBoundingClientRect();
+  const el = h('div', { class: `money-pop ${amount >= 0 ? 'up' : 'down'}` }, `${amount >= 0 ? '+' : '−'}${money(Math.abs(Math.round(amount)))}`);
+  el.style.left = `${r.left + r.width / 2}px`;
+  el.style.top = `${r.top - 18}px`;
+  document.body.append(el);
+  setTimeout(() => el.remove(), 1300);
 }
