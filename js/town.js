@@ -3,7 +3,9 @@
 // Walk with arrow keys / WASD, or tap anywhere (or on a building) to walk there.
 // The town changes with the seasons and has townsfolk, ducks, smoke and weather.
 
-const T = 16, MW = 32, MH = 18, W = MW * T, H = MH * T;
+const T = 16, MW = 32, MH = 19, W = MW * T, H = MH * T;
+// Countryside drawn around the town so the ground fills any screen shape (look only; you can't walk there).
+const MX = 16, MY = 14, OX = MX * T, OY = MY * T, BW = W + 2 * OX, BH = H + 2 * OY;
 const SPEED = 82; // map pixels per second
 const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -16,9 +18,9 @@ export const BUILDINGS = [
   { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, enter: true, kiosk: true, labelY: 203 },
   { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, enter: true, stand: true },
   { id: 'mine', label: 'MINE', x: 24, y: 11, w: 5, h: 4, door: 26, enter: true, mine: true },
-  { id: 'dock', label: 'DOCK', x: 10, y: 11, w: 3, h: 4, door: 11, enter: true, dock: true, labelY: 170 },
+  { id: 'dock', label: 'DOCK', x: 15, y: 17, w: 2, h: 2, door: 15, enter: true, dock: true, doorTop: true, labelX: 292, labelY: 288 },
 ];
-const PATHS = [[0, 8, 32, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
+const PATHS = [[-MX, 8, MW + 2 * MX, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
 const POND = [10, 11, 3, 3];
 const HEDGE_GAPS = [5, 12, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 // Natural edges: small clusters of trees with gaps (no solid wall), plus rocks, bushes, a fence, a meadow and a creek.
@@ -31,16 +33,16 @@ const ROCKS = [[4, 16], [29, 16], [19, 1], [31, 6], [6, 0]];
 const BUSHES = [[1, 10], [30, 10], [24, 1], [2, 0], [29, 11]];
 const FENCE = { y: 1, x0: 10, x1: 15 };
 const MEADOW = [[1, 15], [2, 15], [3, 15], [1, 16], [2, 16], [3, 16], [1, 14]];
-const CREEK_Y = 17, BRIDGE = [15, 16];
+const CREEK_Y = 17, CREEK_H = 2; // the river along the bottom
 const BULL = [20, 7]; // the bull statue's plinth covers this tile and the next one
-const FLOWERS = [[3, 6.6], [7, 6.6], [20, 6.6], [27, 6.6], [9, 15], [12, 15], [2, 14], [23, 12], [23, 13]];
-const LAMPS = [[4, 10], [11, 10], [20, 10], [28, 10]];
+const FLOWERS = [[3, 6.6], [7, 6.6], [20, 6.6], [27, 6.6], [10, 15], [11, 15], [2, 14], [23, 12], [23, 13]];
+const LAMPS = [[4, 10], [11, 10], [20, 10], [28, 10], [-5, 10], [-12, 10], [MW + 4, 10], [MW + 11, 10]];
 const CHIMNEYS = BUILDINGS.filter((b) => b.chimney).map((b) => [b.x * T + b.w * T - 14, b.y * T - 14]);
 
 // Townsfolk walk these loops (tile waypoints; `wait` = seconds to pause there).
 const ROUTES = [
-  { shirt: '#A88E84', hair: '#2E2420', speed: 26, pts: [[0, 8, 2], [31, 8, 2.5]] },
-  { shirt: '#8E9CAA', hair: '#C9A15B', speed: 22, pts: [[31, 9, 3], [0, 9, 2]] },
+  { shirt: '#A88E84', hair: '#2E2420', speed: 26, pts: [[-10, 8, 2], [MW + 9, 8, 2.5]] },
+  { shirt: '#8E9CAA', hair: '#C9A15B', speed: 22, pts: [[MW + 9, 9, 3], [-10, 9, 2]] },
   { shirt: '#9C92AA', hair: '#5A3A28', speed: 24, pts: [[15, 9], [15, 16], [6, 16], [6, 15, 2.5], [6, 16], [26, 16], [26, 15, 2], [26, 16], [15, 16], [15, 10]] },
   { shirt: '#8EA394', hair: '#2E2420', speed: 25, pts: [[8, 9], [5, 9], [5, 7, 2.5], [5, 9], [23, 9], [23, 7, 2.5], [23, 9]] },
   { shirt: '#B39AA4', hair: '#7A4A22', speed: 20, pts: [[16, 10], [16, 16], [17, 16, 1.5], [16, 16], [16, 9], [12, 9], [12, 7, 2], [12, 9], [16, 9]] },
@@ -64,12 +66,16 @@ const solid = Array.from({ length: MH }, () => Array(MW).fill(false));
 const doorAt = {};
 for (const [x, y] of TREES) solid[y][x] = true;
 for (const b of BUILDINGS) for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) solid[y][x] = true;
-for (const b of BUILDINGS) if (b.enter) doorAt[`${b.door},${b.y + b.h - 1}`] = b;
+for (const b of BUILDINGS) {
+  if (!b.enter) continue;
+  if (b.doorTop) for (let x = b.x; x < b.x + b.w; x++) doorAt[`${x},${b.y}`] = b; // walk down onto it (the dock)
+  else doorAt[`${b.door},${b.y + b.h - 1}`] = b;
+}
 for (let y = POND[1]; y < POND[1] + POND[3]; y++) for (let x = POND[0]; x < POND[0] + POND[2]; x++) solid[y][x] = true;
 for (let x = 1; x < MW - 1; x++) if (!HEDGE_GAPS.includes(x)) solid[7][x] = true;
 for (const [x, y] of [...ROCKS, ...BUSHES]) solid[y][x] = true;
 for (let x = FENCE.x0; x <= FENCE.x1; x++) solid[FENCE.y][x] = true;
-for (let x = 0; x < MW; x++) if (!BRIDGE.includes(x)) solid[CREEK_Y][x] = true;
+for (let y = CREEK_Y; y < CREEK_Y + CREEK_H; y++) for (let x = 0; x < MW; x++) solid[y][x] = true;
 solid[BULL[1]][BULL[0]] = solid[BULL[1]][BULL[0] + 1] = true;
 const isSolid = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH || solid[ty][tx];
 
@@ -77,13 +83,52 @@ let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
 
+// ---------- countryside around the town (look only: you can't walk out here) ----------
+function drawOutskirts(c, season) {
+  const G = SEASONS[season].grass, winter = season === 'winter';
+  let k = 99; const rr = () => ((k = (k * 16807) % 2147483647) / 2147483647);
+  R(c, -OX, -OY, BW, BH, G[0]);
+  for (let i = 0; i < 12500; i++) R(c, -OX + Math.floor(rr() * BW), -OY + Math.floor(rr() * BH), 1, rr() < .5 ? 2 : 1, G[1 + Math.floor(rr() * 3)]);
+  if (winter) for (let i = 0; i < 1250; i++) R(c, -OX + Math.floor(rr() * BW), -OY + Math.floor(rr() * BH), 2, 1, '#9DB58A');
+  // farm fields (it's Sprout City, after all)
+  const fields = [[-12, 1, 7, 4], [MW + 4, 2, 7, 4], [-10, 12, 6, 3], [MW + 5, 12, 6, 3], [6, -7, 8, 4], [MW - 12, -9, 7, 4]];
+  for (const [fx, fy, fw, fh] of fields) {
+    const x = fx * T, y = fy * T, w = fw * T, h = fh * T;
+    R(c, x, y, w, h, winter ? '#E6EDF2' : '#7A5A3A');
+    for (let yy = y + 4; yy < y + h; yy += 6) {
+      R(c, x, yy, w, 2, winter ? '#D6E0E8' : '#5E4430');
+      if (!winter) for (let xx = x + 2; xx < x + w - 2; xx += 5) {
+        R(c, xx, yy - 3, 1, 3, season === 'fall' ? '#C98A3A' : '#4E8A3C');
+        R(c, xx + 1, yy - 4, 2, 2, season === 'fall' ? '#E8B04A' : season === 'summer' ? '#82BD52' : '#76AE50');
+      }
+    }
+    for (let xx = x - 3; xx <= x + w + 1; xx += 8) { R(c, xx, y - 6, 2, 6, '#F4F1EA'); R(c, xx, y + h, 2, 6, '#F4F1EA'); }
+    R(c, x - 3, y - 4, w + 6, 1, '#F4F1EA'); R(c, x - 3, y + h + 2, w + 6, 1, '#F4F1EA');
+  }
+  const inField = (tx, ty) => fields.some(([fx, fy, fw, fh]) => tx >= fx - 1 && tx <= fx + fw && ty >= fy - 1 && ty <= fy + fh);
+  const inTown = (tx, ty) => tx >= -1 && tx <= MW && ty >= -1 && ty <= MH;
+  const keepClear = (ty) => (ty >= 7 && ty <= 10) || (ty >= CREEK_Y - 1 && ty <= CREEK_Y + CREEK_H);
+  // trees in loose groves, with bushes, rocks and wildflowers between
+  for (let ty = -MY; ty < MH + MY; ty++) for (let tx = -MX; tx < MW + MX; tx++) {
+    if (inTown(tx, ty) || keepClear(ty) || inField(tx, ty)) continue;
+    const v = rr(), grove = ((((tx + 64) >> 2) * 73856093) ^ (((ty + 64) >> 2) * 19349663)) >>> 0;
+    const dense = grove % 5 < 2, x = tx * T, y = ty * T;
+    if (v < (dense ? 0.5 : 0.05)) drawTree(c, tx, ty, season);
+    else if (v < (dense ? 0.56 : 0.08)) { R(c, x + 2, y + 7, 12, 7, '#2F6A2C'); R(c, x + 3, y + 6, 10, 6, '#3F7F38'); R(c, x + 5, y + 7, 3, 2, '#5A9A48'); if (winter) R(c, x + 3, y + 6, 10, 2, '#FFFFFF'); }
+    else if (v < 0.1) { R(c, x + 3, y + 8, 10, 5, '#7A766E'); R(c, x + 4, y + 7, 8, 3, '#9E9A90'); R(c, x + 5, y + 7, 3, 1, '#B9B4AA'); if (winter) R(c, x + 4, y + 7, 8, 1, '#FFFFFF'); }
+    else if (v < 0.17 && !winter) for (let i = 0; i < 3; i++) { const fx = x + 3 + i * 4, fy = y + 6 + (i % 2) * 3; R(c, fx, fy + 2, 1, 2, '#3E7A2E'); R(c, fx, fy, 2, 2, season === 'fall' ? ['#D9832E', '#E8B04A', '#B85A2A'][i] : ['#E8607A', '#F2D45C', '#F2F2F2'][i]); }
+  }
+}
+
 // ---------- static scenery (redrawn when the season changes) ----------
 function drawStatic(season) {
   seed = 7;
   const SZ = SEASONS[season];
   const winter = season === 'winter';
-  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const cv = document.createElement('canvas'); cv.width = BW; cv.height = BH;
   const c = cv.getContext('2d');
+  c.translate(OX, OY); // town coordinates; the countryside lies at negative / beyond-map coordinates
+  drawOutskirts(c, season);
   const G = SZ.grass;
   R(c, 0, 0, W, H, G[0]);
   for (let i = 0; i < 2600; i++) R(c, Math.floor(rnd() * W), Math.floor(rnd() * H), 1, rnd() < .5 ? 2 : 1, G[1 + Math.floor(rnd() * 3)]);
@@ -218,16 +263,13 @@ function drawStandBase(c, b, winter) {
 // ---------- edges of town: creek & bridge, picket fence, rocks, bushes, meadow ----------
 function drawEdges(c, season) {
   const winter = season === 'winter';
-  // creek along the bottom, with a wooden footbridge where the street crosses
-  const cy = CREEK_Y * T;
-  R(c, 0, cy, W, 2, winter ? '#E6EDF2' : '#C9B48A');
-  R(c, 0, cy + 2, W, T - 2, winter ? '#BFD8E8' : '#4F86B0');
-  for (let x = 4; x < W; x += 13) R(c, x, cy + 6 + (x % 3), 6, 1, winter ? '#FFFFFF' : '#7FB0D6');
-  const bx = BRIDGE[0] * T;
-  R(c, bx - 2, cy - 1, 36, T + 1, '#6B4A30');
-  for (let x = bx; x < bx + 32; x += 4) R(c, x, cy, 3, T, '#B08A55');
-  R(c, bx - 2, cy, 2, T, '#5A3A28'); R(c, bx + 32, cy, 2, T, '#5A3A28');
-  if (winter) R(c, bx - 2, cy - 1, 36, 2, '#FFFFFF');
+  // the river along the bottom (it runs on through the countryside on both sides)
+  const cy = CREEK_Y * T, ch = CREEK_H * T;
+  R(c, -OX, cy, BW, 2, winter ? '#E6EDF2' : '#C9B48A');
+  R(c, -OX, cy + 2, BW, ch - 4, winter ? '#BFD8E8' : '#4F86B0');
+  R(c, -OX, cy + 2, BW, 3, winter ? '#D4E6F1' : '#5E97C0');
+  R(c, -OX, cy + ch - 2, BW, 2, winter ? '#E6EDF2' : '#C9B48A');
+  for (let x = 4 - OX; x < W + OX; x += 13) R(c, x, cy + 8 + (Math.abs(x) % 3) * 6, 6, 1, winter ? '#FFFFFF' : '#7FB0D6');
   // white picket fence behind Home
   for (let x = FENCE.x0 * T; x < (FENCE.x1 + 1) * T; x += 4) { R(c, x, FENCE.y * T + 4, 3, 10, '#FFFFFF'); R(c, x, FENCE.y * T + 3, 3, 1, '#E2DBCC'); }
   R(c, FENCE.x0 * T, FENCE.y * T + 7, (FENCE.x1 - FENCE.x0 + 1) * T, 2, '#F4F1EA'); R(c, FENCE.x0 * T, FENCE.y * T + 11, (FENCE.x1 - FENCE.x0 + 1) * T, 2, '#F4F1EA');
@@ -238,7 +280,7 @@ function drawEdges(c, season) {
     R(c, x - (i % 2), y, 2, 2, season === 'fall' ? ['#D9832E', '#E8B04A'][i % 2] : ['#F2F2F2', '#F2D45C', '#E8607A', '#A97FD8'][i % 4]);
   }
   for (let i = 0; i < 40; i++) { // tufts of tall grass scattered around the edges
-    const x = (i * 97) % W, y = i % 2 ? 4 + (i * 13) % 20 : H - 40 + (i * 7) % 18;
+    const x = (i * 97) % W, y = i % 2 ? 4 + (i * 13) % 20 : CREEK_Y * T - 24 + (i * 7) % 18;
     if (winter) R(c, x, y, 3, 1, '#C9D6E0'); else { R(c, x, y, 1, 3, '#4E8A3C'); R(c, x + 2, y + 1, 1, 2, '#4E8A3C'); }
   }
   // rocks
@@ -349,27 +391,26 @@ function drawKiosk(c, b, winter) {
   R(c, sx + 2, y + 43, 7, 2, '#C2483A'); R(c, sx + 2, y + 47, 7, 1, '#8D8A84'); R(c, sx + 2, y + 50, 5, 1, '#8D8A84');
 }
 
-// ---------- the dock: a little wooden pier into the pond, with a rowboat tied up ----------
+// ---------- the dock: a wooden pier from the end of the street out into the river ----------
 function drawDock(c, b, winter) {
-  const px = b.door * T + 4, top = POND[1] * T + 26, bottom = (b.y + b.h) * T - 2;
-  // landing on the shore
-  R(c, b.x * T + 10, (b.y + b.h - 1) * T + 1, 28, 14, '#5A3A28');
-  for (let x = b.x * T + 11; x < b.x * T + 37; x += 4) R(c, x, (b.y + b.h - 1) * T + 2, 3, 12, '#B08A55');
-  // pier planks out over the water, on posts
-  R(c, px - 1, top - 1, 10, bottom - top + 1, '#5A3A28');
-  for (let y = top; y < bottom; y += 3) R(c, px, y, 8, 2, y % 2 ? '#B08A55' : '#C49A62');
-  for (const yy of [top + 1, top + 12]) { R(c, px - 2, yy, 2, 4, '#4A3020'); R(c, px + 8, yy, 2, 4, '#4A3020'); }
+  const x0 = b.x * T + 3, w = b.w * T - 6, top = b.y * T - 2, bottom = (b.y + b.h) * T + 6;
+  R(c, x0 + 2, top + 4, w, bottom - top, 'rgba(20,40,60,.25)'); // shadow on the water
+  R(c, x0 - 1, top - 1, w + 2, bottom - top + 1, '#5A3A28');
+  for (let y = top; y < bottom; y += 3) R(c, x0, y, w, 2, (y >> 1) % 2 ? '#B08A55' : '#C49A62');
+  for (const yy of [top + 6, top + 18, bottom - 6]) { R(c, x0 - 3, yy, 3, 5, '#4A3020'); R(c, x0 + w, yy, 3, 5, '#4A3020'); }
+  // a bait bucket and a rod leaning on a post
+  R(c, x0 + 3, top + 4, 5, 5, '#6E7480'); R(c, x0 + 3, top + 4, 5, 1, '#9AA0A8');
+  R(c, x0 + w - 3, top - 8, 1, 16, '#6B4A30'); R(c, x0 + w - 2, top - 8, 1, 1, '#D0584A');
   if (winter) {
-    R(c, px - 1, top - 1, 10, 2, '#FFFFFF'); R(c, b.x * T + 10, (b.y + b.h - 1) * T + 1, 28, 2, '#FFFFFF');
-    // a fishing hole in the ice at the end of the pier
-    R(c, px - 1, top - 9, 10, 6, '#3E6E92'); R(c, px, top - 10, 8, 8, '#3E6E92'); R(c, px + 1, top - 8, 3, 1, '#7FB0D6');
+    R(c, x0 - 1, top - 1, w + 2, 2, '#FFFFFF');
+    R(c, x0 + 6, bottom + 1, w - 12, 5, '#3E6E92'); R(c, x0 + 8, bottom, w - 16, 7, '#3E6E92'); R(c, x0 + 9, bottom + 2, 4, 1, '#7FB0D6'); // fishing hole
     return;
   }
-  // rowboat tied to the left of the pier
-  const bx = POND[0] * T + 4, by = POND[1] * T + 30;
-  R(c, bx + 1, by + 7, 13, 2, 'rgba(20,40,60,.25)');
-  R(c, bx, by, 14, 6, '#7A4A2A'); R(c, bx + 1, by + 6, 12, 1, '#5A3A28'); R(c, bx + 2, by + 1, 10, 3, '#A86A3A'); R(c, bx + 6, by + 1, 2, 4, '#7A4A2A');
-  R(c, bx + 14, by + 2, px - bx - 14, 1, '#E2DBCC'); // rope
+  // rowboat tied alongside
+  const bx = x0 - 22, by = b.y * T + 10;
+  R(c, bx + 1, by + 7, 16, 2, 'rgba(20,40,60,.3)');
+  R(c, bx, by, 17, 7, '#7A4A2A'); R(c, bx + 1, by + 7, 15, 1, '#5A3A28'); R(c, bx + 2, by + 1, 13, 4, '#A86A3A'); R(c, bx + 7, by + 1, 2, 5, '#7A4A2A');
+  R(c, bx + 17, by + 2, x0 - bx - 18, 1, '#E2DBCC'); // rope
 }
 
 // ---------- the mine: a rocky hill with a timber-framed entrance, rails and an ore cart ----------
@@ -449,13 +490,13 @@ function drawPerson(c, px, py, dir, frame, shirt, hair = '#5A3A28', upperOnly = 
 
 export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {}) {
   const g = canvas.getContext('2d');
-  const low = document.createElement('canvas'); low.width = W; low.height = H;
+  const low = document.createElement('canvas'); low.width = BW; low.height = BH;
   const lg = low.getContext('2d');
   let scenery = null;
   const me = { x: 16 * T + 8, y: 9 * T + 12, dir: 'down', moving: false, anim: 0 };
   let path = null, pathBuilding = null;
   const keys = new Set();
-  let paused = false, guide = null, S = 1, last = performance.now();
+  let paused = false, guide = null, S = 1, offX = 0, offY = 0, last = performance.now();
   // what's going on in the game this year (set by main.js)
   let world = { name: '', season: 'spring', tip: false, shiftDone: false, helper: false, recipe: false, bigStand: false, savings: false, ticker: [] };
 
@@ -463,17 +504,19 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
   const folk = ROUTES.map((r, i) => ({ ...r, x: r.pts[0][0] * T + 8, y: r.pts[0][1] * T + 12, i: 1, dir: 1, wait: i * 0.8, anim: 0, face: 'down' }));
   // ambient bits
   const smoke = [], weather = [];
-  const ducks = [{ x: POND[0] * T + 14, y: POND[1] * T + 16, vx: 4, t: 0 }, { x: POND[0] * T + 32, y: POND[1] * T + 4, vx: -3, t: 2 }];
+  const ducks = [{ x: POND[0] * T + 14, y: POND[1] * T + 16, vx: 4, t: 0 }, { x: POND[0] * T + 32, y: POND[1] * T + 32, vx: -3, t: 2 }];
   const butterflies = [0, 1, 2].map((i) => ({ hx: FLOWERS[i * 3][0] * T + 8, hy: FLOWERS[i * 3][1] * T + 10, t: i * 2, col: ['#F2D45C', '#FFFFFF', '#E8A0C0'][i] }));
   let birds = null, birdTimer = 6, smokeTimer = 0;
 
   function resize() {
     const box = canvas.parentElement.getBoundingClientRect();
+    // The whole town always fits on screen; the countryside around it fills the rest of the window.
     const fit = Math.min(box.width / W, box.height / H);
     const dpr = window.devicePixelRatio || 1;
-    canvas.style.width = `${Math.floor(W * fit)}px`; canvas.style.height = `${Math.floor(H * fit)}px`;
-    canvas.width = Math.floor(W * fit * dpr); canvas.height = Math.floor(H * fit * dpr);
-    S = canvas.width / W;
+    canvas.style.width = `${Math.floor(box.width)}px`; canvas.style.height = `${Math.floor(box.height)}px`;
+    canvas.width = Math.floor(box.width * dpr); canvas.height = Math.floor(box.height * dpr);
+    S = fit * dpr;
+    offX = Math.round((canvas.width - W * S) / 2); offY = Math.round((canvas.height - H * S) / 2);
     scenery = drawStatic(world.season);
   }
 
@@ -484,14 +527,14 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
 
   function enter(b) {
     keys.clear(); path = null; pathBuilding = null; me.moving = false;
-    me.x = b.door * T + 8; me.y = (b.y + b.h) * T + 12; me.dir = 'down';
+    me.x = b.door * T + 8; me.y = b.doorTop ? (b.y - 1) * T + 12 : (b.y + b.h) * T + 12; me.dir = b.doorTop ? 'up' : 'down';
     onEnter(b.id);
   }
 
   function moveBy(dx, dy) {
     const nx = me.x + dx, ny = me.y + dy;
     const b = doorHit(nx, ny);
-    if (b && dy < 0) { enter(b); return true; }
+    if (b && (b.doorTop ? dy > 0 : dy < 0)) { enter(b); return true; }
     if (!blocked(nx, me.y)) me.x = nx;
     if (!blocked(me.x, ny)) me.y = ny;
     return false;
@@ -554,18 +597,18 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     }
     for (const b of butterflies) b.t += dt;
     birdTimer -= dt;
-    if (!birds && birdTimer <= 0) birds = { x: -20, y: 20 + Math.random() * 120, t: 0 };
-    if (birds) { birds.t += dt; birds.x += 70 * dt; birds.y += 12 * dt; if (birds.x > W + 30) { birds = null; birdTimer = 10 + Math.random() * 10; } }
+    if (!birds && birdTimer <= 0) birds = { x: -OX - 20, y: 20 + Math.random() * 120, t: 0 };
+    if (birds) { birds.t += dt; birds.x += 70 * dt; birds.y += 12 * dt; if (birds.x > W + OX + 30) { birds = null; birdTimer = 10 + Math.random() * 10; } }
     // seasonal weather particles
     const want = { spring: 14, summer: 0, fall: 22, winter: 60 }[world.season];
-    while (weather.length < want) weather.push({ x: Math.random() * W, y: Math.random() * H, t: Math.random() * 6 });
-    weather.length = Math.min(weather.length, want);
+    while (weather.length < want * 4) weather.push({ x: Math.random() * BW - OX, y: Math.random() * BH - OY, t: Math.random() * 6 });
+    weather.length = Math.min(weather.length, want * 4);
     for (const p of weather) {
       p.t += dt;
       if (world.season === 'winter') { p.y += 16 * dt; p.x += Math.sin(p.t) * 6 * dt; }
       else { p.y += 11 * dt; p.x += (10 + Math.sin(p.t * 2) * 12) * dt; }
-      if (p.y > H) { p.y = -4; p.x = Math.random() * W; }
-      if (p.x > W) p.x = 0;
+      if (p.y > H + OY) { p.y = -OY - 4; p.x = Math.random() * BW - OX; }
+      if (p.x > W + OX) p.x = -OX;
     }
   }
 
@@ -598,7 +641,8 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
 
   function draw(t) {
     const sec = t / 1000;
-    lg.drawImage(scenery, 0, 0);
+    lg.setTransform(1, 0, 0, 1, OX, OY);
+    lg.drawImage(scenery, -OX, -OY);
     // pond life
     if (world.season !== 'winter') {
       for (let i = 0; i < 3; i++) { const rx = POND[0] * T + 8 + ((sec * 4 + i * 13) % 30), ry = POND[1] * T + 14 + i * 9; R(lg, rx, ry, 5, 1, '#9CC6E0'); }
@@ -650,7 +694,9 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     }
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.imageSmoothingEnabled = false;
-    g.drawImage(low, 0, 0, canvas.width, canvas.height);
+    g.fillStyle = SEASONS[world.season].grass[0]; g.fillRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(low, OX - offX / S, OY - offY / S, canvas.width / S, canvas.height / S, 0, 0, canvas.width, canvas.height);
+    g.setTransform(1, 0, 0, 1, offX, offY); // crisp labels use town coordinates × S
     drawHighRes(t);
     drawNameTag();
   }
@@ -683,7 +729,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     }
     for (const b of BUILDINGS) {
       if (!b.label) continue;
-      const fx = (b.door * T + 8) * S;
+      const fx = (b.labelX ?? b.door * T + 8) * S;
       const w = g.measureText(b.label).width + 6 * S, h = 10 * S;
       const x = fx - w / 2;
       const y = b.labelY ? b.labelY * S - h / 2 : ((b.y + b.h) * T - (b.stand ? 4 : 20)) * S - h - 2 * S;
@@ -751,10 +797,11 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
   canvas.addEventListener('pointerdown', (e) => {
     if (paused) return;
     const r = canvas.getBoundingClientRect();
-    const mx = (e.clientX - r.left) / r.width * W, my = (e.clientY - r.top) / r.height * H;
+    const k = canvas.width / r.width;
+    const mx = ((e.clientX - r.left) * k - offX) / S, my = ((e.clientY - r.top) * k - offY) / S;
     const tx = Math.floor(mx / T), ty = Math.floor(my / T);
     const b = BUILDINGS.find((q) => q.enter && tx >= q.x && tx < q.x + q.w && ty >= q.y && ty < q.y + q.h);
-    if (b) walkToTile(b.door, b.y + b.h, b);
+    if (b) walkToTile(b.door, b.doorTop ? b.y - 1 : b.y + b.h, b);
     else walkToTile(tx, ty);
   });
 
@@ -775,7 +822,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
       if (seasonChanged) scenery = drawStatic(world.season);
     },
     resize,
-    walkTo(id) { const b = BUILDINGS.find((q) => q.id === id); walkToTile(b.door, b.y + b.h, b); },
+    walkTo(id) { const b = BUILDINGS.find((q) => q.id === id); walkToTile(b.door, b.doorTop ? b.y - 1 : b.y + b.h, b); },
     pos() { return { x: me.x, y: me.y }; }, // used by automated tests
   };
 }

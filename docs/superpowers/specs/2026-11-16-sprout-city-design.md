@@ -186,3 +186,8 @@ The user found the cave-in mineshaft confusing and rejected geodes as too much g
 - 72 questions in `js/questions.js` (12 per tier). Questions are picked per kid (seeded by nickname, so neighbors get different ones) from the same tier; no repeats within a tier until it runs out. Fish are the same for every kid.
 - Engine: `fishQuestion`, `castProgress`, `fishSchool`, `runCast` (replays answers, checks every hooked item was reachable), `castsLeft`, `fishStats`. New award: Master Angler (reached The Abyss).
 - Balance (perfect catches): $12/yr knowing nothing, ~$33/yr reaching band 4, $60/yr perfect. Working + investing still beats working only by 30%+.
+
+## Update 2026-11-18: dock on the river, town fills the window
+- The Dock moved from the pond to the river at the bottom of town. The river is now 2 tiles wide (map is 32 × 19), and the cross street ends at a wooden pier where the footbridge used to be. You enter by walking down onto it (`doorTop` buildings). The pond is back to just ducks.
+- No more navy bars: the canvas fills the play area. The whole town still fits at the same scale, and countryside fills the rest (Main Street and the river run on to the edges, with groves, fenced crop fields, bushes, rocks and wildflowers). Townsfolk walk out along Main Street, and weather covers the whole screen. The countryside is look-only.
+- The tutorial bar moved to the top of the screen so it never covers the dock.

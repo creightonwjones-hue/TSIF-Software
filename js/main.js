@@ -24,7 +24,7 @@ const TUTORIAL = [
   ['exchange', 'Next, visit the STOCK EXCHANGE to buy stocks and bonds.'],
   ['lemonade', 'Now run your LEMONADE stand to earn some money.'],
   ['mine', 'Next, work a shift at the MINE and dig for ore.'],
-  ['dock', 'Then head to the DOCK by the pond and go fishing.'],
+  ['dock', 'Then head down to the DOCK on the river and go fishing.'],
   ['home', 'Done for the year? Walk HOME to sleep and start the next year.'],
 ];
 

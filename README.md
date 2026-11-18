@@ -9,7 +9,7 @@ Each kid starts with **$1,000** and has **10 years** to grow it. They walk aroun
 - **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds
 - **Lemonade Stand**: run one shift a year and buy upgrades that grow the business
 - **Mine**: one shift a year at a rock wall. You get 25 swings: dirt breaks in 1 hit, rock in 2, granite in 3. Ore (coal, iron, silver, gold) hides in connected veins, so once you find some, follow the sparkles to the rest — 3+ ore blocks in a row from one vein earn a bonus. Same wall for everyone each year; no betting, nothing to lose
-- **Dock**: go fishing by the pond — 3 casts a year. Each right answer to an investing question sends your lure one level deeper (and the questions get harder); the first wrong answer stops it and shows the right answer. Then reel up and steer the hook into fish — deeper fish are worth more, your rod holds 4, and junk pays nothing
+- **Dock**: go fishing off the pier on the river — 3 casts a year. Each right answer to an investing question sends your lure one level deeper (and the questions get harder); the first wrong answer stops it and shows the right answer. Then reel up and steer the hook into fish — deeper fish are worth more, your rod holds 4, and junk pays nothing
 - **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
 - **Home**: go to sleep to end the year and see what happened
 
