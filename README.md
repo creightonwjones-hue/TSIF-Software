@@ -8,7 +8,7 @@ Each kid starts with **$1,000** and has **10 years** to grow it. They walk aroun
 - **Bank**: put money in savings (safe, +3%/yr) or take out a loan (costs 8%/yr)
 - **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds
 - **Lemonade Stand**: run one shift a year and buy upgrades that grow the business
-- **Mine**: work a shift each year: 10 pickaxe swings to dig for coal, silver and gold
+- **Mine**: one trip a year — dig your own tunnel for coal, silver, gold and gems. Deeper ore is worth more, but you need enough energy to climb home, and digging next to cracked rock causes a cave-in unless you brace it first
 - **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
 - **Home**: go to sleep to end the year and see what happened
 
