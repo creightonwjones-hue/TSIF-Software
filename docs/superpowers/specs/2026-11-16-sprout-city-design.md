@@ -171,3 +171,11 @@ The user wanted the mine to take more skill and be more fun: push-your-luck digg
 - Energy 24: dirt costs 1, hard stone 2; climbing home costs 1 per level. Run out underground and you're rescued with half your haul.
 - Cracked rock: can't be dug, and digging right next to it causes a cave-in (you lose the cart), unless you Brace first (2 beams). A red "!" outline warns about dangerous tiles next to you.
 - Shared rules in the engine (`mineMap`, `mineStep`, `runMine` replays the moves); an in-progress trip is saved, and leaving mid-trip counts as heading home. Maps are rerolled until a safe route to gold exists; a careful-miner bot (no beams) averages about $21 a trip.
+
+## Update 2026-11-18 (late): the Mine becomes "follow the vein"
+The user found the cave-in mineshaft confusing and rejected geodes as too much gambling. They wanted ore to be a surprise but the game to reward skill.
+- A 10×6 rock wall, seeded per game and year (same for every kid). Hardness is visible: dirt 1 hit, rock 2, granite 3.
+- Ore is hidden in connected veins: coal ×5 ($1), iron ×4 ($2), silver ×4 ($3), gold ×3 ($5).
+- 25 swings. Unbroken ore next to broken ore sparkles, so finding the rest of a vein is skill. Breaking the 3rd+ ore block in a row from the same vein adds +$1.
+- No betting and nothing to lose. A vein-following bot averages about $30 a shift; random tapping about $9. The balance rules are unchanged.
+- Shared engine rules (`mineWall`, `mineProgress`, `runMine` replays the hits). An in-progress shift is saved each swing; leaving early banks what's in the cart.

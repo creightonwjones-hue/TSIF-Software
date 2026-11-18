@@ -318,7 +318,9 @@ canvas.stand-scene { border: 3px solid var(--slate); height: auto; }
 /* ---------- Mine ---------- */
 .two-col.mine { grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr); }
 .mine-cave { background: #14110E; padding: 8px; display: grid; place-items: center; }
-.mine-canvas { display: block; height: calc(100vh - var(--hud-h, 58px) - 160px); max-height: 620px; min-height: 300px; width: auto; max-width: 100%; aspect-ratio: 144 / 184; image-rendering: pixelated; cursor: pointer; touch-action: none; }
+.mine-canvas { display: block; width: 100%; height: auto; max-height: calc(100vh - var(--hud-h, 58px) - 150px); aspect-ratio: 176 / 132; object-fit: contain; image-rendering: pixelated; cursor: pointer; touch-action: none; outline: none; }
+.found-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.found-row .chip { display: inline-flex; align-items: center; gap: 4px; }
 .mine-side { display: flex; flex-direction: column; gap: 12px; }
 .done-line.bad { color: var(--down); }
 .energy-top { display: flex; justify-content: space-between; align-items: baseline; }
