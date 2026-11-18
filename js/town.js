@@ -16,6 +16,7 @@ export const BUILDINGS = [
   { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, enter: true, kiosk: true, labelY: 203 },
   { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, enter: true, stand: true },
   { id: 'mine', label: 'MINE', x: 24, y: 11, w: 5, h: 4, door: 26, enter: true, mine: true },
+  { id: 'dock', label: 'DOCK', x: 10, y: 11, w: 3, h: 4, door: 11, enter: true, dock: true, labelY: 170 },
 ];
 const PATHS = [[0, 8, 32, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
 const POND = [10, 11, 3, 3];
@@ -32,7 +33,7 @@ const FENCE = { y: 1, x0: 10, x1: 15 };
 const MEADOW = [[1, 15], [2, 15], [3, 15], [1, 16], [2, 16], [3, 16], [1, 14]];
 const CREEK_Y = 17, BRIDGE = [15, 16];
 const BULL = [20, 7]; // the bull statue's plinth covers this tile and the next one
-const FLOWERS = [[3, 6.6], [7, 6.6], [20, 6.6], [27, 6.6], [10, 15], [11, 15], [2, 14], [23, 12], [23, 13]];
+const FLOWERS = [[3, 6.6], [7, 6.6], [20, 6.6], [27, 6.6], [9, 15], [12, 15], [2, 14], [23, 12], [23, 13]];
 const LAMPS = [[4, 10], [11, 10], [20, 10], [28, 10]];
 const CHIMNEYS = BUILDINGS.filter((b) => b.chimney).map((b) => [b.x * T + b.w * T - 14, b.y * T - 14]);
 
@@ -125,6 +126,7 @@ function drawStatic(season) {
     if (b.civic) drawCivic(c, b, winter);
     else if (b.kiosk) drawKiosk(c, b, winter);
     else if (b.mine) drawMine(c, b, winter);
+    else if (b.dock) drawDock(c, b, winter);
     else drawBuilding(c, b, winter);
   }
   drawBull(c, winter);
@@ -347,6 +349,29 @@ function drawKiosk(c, b, winter) {
   R(c, sx + 2, y + 43, 7, 2, '#C2483A'); R(c, sx + 2, y + 47, 7, 1, '#8D8A84'); R(c, sx + 2, y + 50, 5, 1, '#8D8A84');
 }
 
+// ---------- the dock: a little wooden pier into the pond, with a rowboat tied up ----------
+function drawDock(c, b, winter) {
+  const px = b.door * T + 4, top = POND[1] * T + 26, bottom = (b.y + b.h) * T - 2;
+  // landing on the shore
+  R(c, b.x * T + 10, (b.y + b.h - 1) * T + 1, 28, 14, '#5A3A28');
+  for (let x = b.x * T + 11; x < b.x * T + 37; x += 4) R(c, x, (b.y + b.h - 1) * T + 2, 3, 12, '#B08A55');
+  // pier planks out over the water, on posts
+  R(c, px - 1, top - 1, 10, bottom - top + 1, '#5A3A28');
+  for (let y = top; y < bottom; y += 3) R(c, px, y, 8, 2, y % 2 ? '#B08A55' : '#C49A62');
+  for (const yy of [top + 1, top + 12]) { R(c, px - 2, yy, 2, 4, '#4A3020'); R(c, px + 8, yy, 2, 4, '#4A3020'); }
+  if (winter) {
+    R(c, px - 1, top - 1, 10, 2, '#FFFFFF'); R(c, b.x * T + 10, (b.y + b.h - 1) * T + 1, 28, 2, '#FFFFFF');
+    // a fishing hole in the ice at the end of the pier
+    R(c, px - 1, top - 9, 10, 6, '#3E6E92'); R(c, px, top - 10, 8, 8, '#3E6E92'); R(c, px + 1, top - 8, 3, 1, '#7FB0D6');
+    return;
+  }
+  // rowboat tied to the left of the pier
+  const bx = POND[0] * T + 4, by = POND[1] * T + 30;
+  R(c, bx + 1, by + 7, 13, 2, 'rgba(20,40,60,.25)');
+  R(c, bx, by, 14, 6, '#7A4A2A'); R(c, bx + 1, by + 6, 12, 1, '#5A3A28'); R(c, bx + 2, by + 1, 10, 3, '#A86A3A'); R(c, bx + 6, by + 1, 2, 4, '#7A4A2A');
+  R(c, bx + 14, by + 2, px - bx - 14, 1, '#E2DBCC'); // rope
+}
+
 // ---------- the mine: a rocky hill with a timber-framed entrance, rails and an ore cart ----------
 function drawMine(c, b, winter) {
   const x = b.x * T, y = b.y * T, w = b.w * T, h = b.h * T, cx = b.door * T + 8;
@@ -438,7 +463,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
   const folk = ROUTES.map((r, i) => ({ ...r, x: r.pts[0][0] * T + 8, y: r.pts[0][1] * T + 12, i: 1, dir: 1, wait: i * 0.8, anim: 0, face: 'down' }));
   // ambient bits
   const smoke = [], weather = [];
-  const ducks = [{ x: POND[0] * T + 14, y: POND[1] * T + 16, vx: 4, t: 0 }, { x: POND[0] * T + 32, y: POND[1] * T + 32, vx: -3, t: 2 }];
+  const ducks = [{ x: POND[0] * T + 14, y: POND[1] * T + 16, vx: 4, t: 0 }, { x: POND[0] * T + 32, y: POND[1] * T + 4, vx: -3, t: 2 }];
   const butterflies = [0, 1, 2].map((i) => ({ hx: FLOWERS[i * 3][0] * T + 8, hy: FLOWERS[i * 3][1] * T + 10, t: i * 2, col: ['#F2D45C', '#FFFFFF', '#E8A0C0'][i] }));
   let birds = null, birdTimer = 6, smokeTimer = 0;
 
@@ -676,6 +701,13 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
         g.fillStyle = OUTLINE; g.fillRect(bx - S, by - S, 9 * S, 12 * S);
         g.fillStyle = '#D0584A'; g.fillRect(bx, by, 7 * S, 10 * S);
         g.fillStyle = '#FFFFFF'; g.fillText('!', bx + 3.5 * S, by + 5.4 * S);
+      }
+      if (b.id === 'dock' && world.casts > 0) { // a red-and-white bobber: casts left this year
+        const bx = x + w + 6 * S, by = y + 2 * S + bob;
+        g.fillStyle = OUTLINE; g.fillRect(bx - S, by - S, 8 * S, 9 * S);
+        g.fillStyle = '#D0584A'; g.fillRect(bx, by, 6 * S, 3.5 * S);
+        g.fillStyle = '#FFFFFF'; g.fillRect(bx, by + 3.5 * S, 6 * S, 3.5 * S);
+        g.fillStyle = OUTLINE; g.fillRect(bx + 2.5 * S, by - 3 * S, S, 2 * S);
       }
       if (b.id === 'bank' && world.savings && !REDUCED) { // twinkling sparkles: your savings are growing
         for (let i = 0; i < 3; i++) {

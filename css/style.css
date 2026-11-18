@@ -339,3 +339,38 @@ canvas.stand-scene { border: 3px solid var(--slate); height: auto; }
 .ore-legend b { margin-left: auto; }
 .ore-dot { width: 14px; height: 14px; border: 2px solid var(--slate); display: inline-block; }
 @media (max-width: 1000px) { .two-col.mine { grid-template-columns: 1fr; } }
+
+/* ---------- Dock (fishing) ---------- */
+.two-col.fish { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); }
+.fish-water { background: #1B3A5C; padding: 8px; display: grid; place-items: center; }
+.fish-canvas { display: block; width: 100%; height: auto; max-height: calc(100vh - var(--hud-h, 58px) - 150px); aspect-ratio: 192 / 150; object-fit: contain; image-rendering: pixelated; cursor: pointer; touch-action: none; outline: none; }
+.fish-side { display: flex; flex-direction: column; gap: 12px; }
+.cast-row { display: flex; gap: 8px; }
+.cast-row i { width: 26px; height: 26px; display: inline-block; border: 2px solid var(--slate); background: #D0584A;
+  background-image: linear-gradient(#D0584A 0 50%, #FFFFFF 50% 100%); }
+.cast-row i.used { opacity: .2; }
+.btn.big { font-size: 24px; padding: 12px 22px; }
+.q-level { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 18px; color: var(--muted); }
+.q-dots { display: inline-flex; gap: 3px; }
+.q-dots i { width: 12px; height: 12px; border: 2px solid var(--slate); background: var(--line); display: inline-block; }
+.q-dots i.right { background: var(--green); }
+.q-dots i.now { background: var(--gold); }
+.q-text { font-size: 24px; line-height: 1.15; margin: 0; }
+.q-text.small { font-size: 19px; color: var(--muted); }
+.q-choices { display: flex; flex-direction: column; gap: 8px; }
+.btn.q-choice { text-align: left; justify-content: flex-start; display: flex; align-items: center; gap: 10px; font-size: 20px; line-height: 1.1; padding: 10px 12px; white-space: normal; }
+.q-choice kbd { font-family: inherit; min-width: 24px; height: 24px; display: inline-grid; place-items: center; border: 2px solid var(--slate); background: var(--paper, #FBF6EA); font-size: 17px; flex: none; }
+.q-wrong, .q-right, .q-why { margin: 0; font-size: 19px; }
+.q-wrong b { color: var(--down); }
+.q-right b { color: var(--green); }
+.q-why { background: #EAF3E2; border: 2px solid var(--slate); padding: 8px 10px; }
+.rod-count { display: flex; justify-content: space-between; align-items: baseline; }
+.rod-count b { font-size: 26px; }
+.found-row .chip.junk { opacity: .65; text-decoration: line-through; }
+.fish-wipe { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; pointer-events: none;
+  background: repeating-linear-gradient(180deg, #4F86B0 0 18px, #5E97C0 18px 36px); animation: wipe-in .45s steps(6) both; }
+.fish-wipe.out { animation: wipe-out .55s steps(6) both; }
+.fish-wipe-card { background: #FBF6EA; border: 3px solid #26313F; padding: 12px 26px; font-size: 34px; box-shadow: 4px 4px 0 #26313F; }
+@keyframes wipe-in { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes wipe-out { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(100% 0 0 0); } }
+@media (max-width: 1000px) { .two-col.fish { grid-template-columns: 1fr; } }

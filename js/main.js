@@ -10,6 +10,7 @@ import { newsScreen, yearNewsPopup } from './screens/news.js';
 import { homeScreen } from './screens/home.js';
 import { lemonadeScreen } from './screens/lemonade.js';
 import { mineScreen } from './screens/mine.js';
+import { fishScreen } from './screens/fish.js';
 import { eventCard } from './screens/event.js';
 import { endScreen } from './screens/end.js';
 
@@ -23,6 +24,7 @@ const TUTORIAL = [
   ['exchange', 'Next, visit the STOCK EXCHANGE to buy stocks and bonds.'],
   ['lemonade', 'Now run your LEMONADE stand to earn some money.'],
   ['mine', 'Next, work a shift at the MINE and dig for ore.'],
+  ['dock', 'Then head to the DOCK by the pond and go fishing.'],
   ['home', 'Done for the year? Walk HOME to sleep and start the next year.'],
 ];
 
@@ -97,7 +99,7 @@ export const app = {
     });
     const biz = E.ensureBiz(s);
     this.town.setWorld({ name: s.nickname, season, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
-      recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker });
+      recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker, casts: s.finished ? 0 : E.castsLeft(s) });
   },
 
   // Run an engine action; show the problem kindly if it fails.
@@ -150,6 +152,7 @@ export const app = {
     else if (id === 'news') newsScreen(this);
     else if (id === 'lemonade') lemonadeScreen(this);
     else if (id === 'mine') mineScreen(this);
+    else if (id === 'dock') fishScreen(this);
     else if (id === 'home') homeScreen(this);
     if (TUTORIAL[this.tutorial]?.[0] === id && id !== 'home') this.setTutorial(this.tutorial + 1);
   },

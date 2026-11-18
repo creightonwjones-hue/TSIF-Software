@@ -9,6 +9,7 @@ export function homeScreen(app) {
   const last = s.year === SETTINGS.years;
   const skipped = !E.shiftDone(s);
   const skippedMine = !E.mineDone(s);
+  const castsLeft = E.castsLeft(s);
   app.open({
     modal: true, theme: 'home',
     body: h('div', { class: 'home' },
@@ -17,7 +18,7 @@ export function homeScreen(app) {
       h('p', { class: 'hint' }, last
         ? 'This locks in your final score.'
         : 'Overnight, prices change, interest gets paid, and loans grow. You can\'t undo it.'),
-      skipped || skippedMine ? h('p', { class: 'warn-line' }, `You haven't ${[skipped ? 'run your lemonade stand' : '', skippedMine ? 'worked at the mine' : ''].filter(Boolean).join(' or ')} this year — that's money left on the table.`) : null,
+      skipped || skippedMine || castsLeft ? h('p', { class: 'warn-line' }, `You haven't ${[skipped ? 'run your lemonade stand' : '', skippedMine ? 'worked at the mine' : '', castsLeft ? `used ${castsLeft === SETTINGS.fish.casts ? 'your' : `${castsLeft} of your`} fishing casts` : ''].filter(Boolean).join(' or ')} this year — that's money left on the table.`) : null,
       h('div', { class: 'mini-summary' },
         h('span', { class: 'chip' }, `Cash ${money(s.cash)}`),
         h('span', { class: 'chip' }, `Savings ${money(s.savings)}`),
@@ -51,6 +52,7 @@ function endYear(app) {
   if (r.event) lines.push([r.event.text, `${r.event.amount >= 0 ? '+' : '−'}${money(Math.abs(r.event.amount))}`, r.event.amount >= 0 ? 'up' : 'down']);
   if (r.shiftPay) lines.push(['Lemonade stand', `+${money(r.shiftPay)}`, 'up']);
   if (r.minePay) lines.push(['Mine shift', `+${money(r.minePay)}`, 'up']);
+  if (r.fishPay) lines.push(['Fishing', `+${money(r.fishPay)}`, 'up']);
   if (r.helperPay) lines.push(['Your helper\'s sales', `+${money(r.helperPay)}`, 'up']);
   if (r.savingsInterest) lines.push(['Savings interest', `+${money(r.savingsInterest)}`, 'up']);
   if (r.coupons) lines.push(['Bond payments', `+${money(r.coupons)}`, 'up']);
