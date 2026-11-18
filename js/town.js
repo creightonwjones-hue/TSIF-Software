@@ -13,26 +13,26 @@ const OUTLINE = '#26313F';
 // Buildings (tile units). `door` = the door's tile column on the bottom wall. `enter` = can walk in.
 export const BUILDINGS = [
   { id: 'bank', label: 'BANK', x: 2, y: 2, w: 7, h: 5, door: 5, enter: true, civic: true, labelY: 71 },
-  { id: 'home', label: 'HOME', x: 11, y: 2, w: 4, h: 5, door: 12, wall: 'sky', roof: 'red', enter: true, chimney: true },
+  { id: 'home', label: 'HOME', x: 10, y: 2, w: 4, h: 5, door: 11, wall: 'sky', roof: 'red', enter: true, chimney: true },
   { id: 'shop', label: 'SHOP', x: 15, y: 3, w: 3, h: 4, door: 16, wall: 'brick', roof: 'orange', awning: '#E8607A', enter: true, shop: true },
   { id: 'exchange', label: 'STOCK EXCHANGE', x: 19, y: 2, w: 10, h: 5, door: 23, enter: true, civic: true, labelY: 71 },
   { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, enter: true, kiosk: true, labelY: 203 },
   { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, enter: true, stand: true },
-  { id: 'mine', label: 'MINE', x: 24, y: 11, w: 5, h: 4, door: 26, enter: true, mine: true },
+  { id: 'mine', label: 'MINE', x: 26, y: 11, w: 5, h: 4, door: 28, enter: true, mine: true },
   { id: 'dock', label: 'DOCK', x: 15, y: 17, w: 2, h: 2, door: 15, enter: true, dock: true, doorTop: true, labelX: 292, labelY: 288 },
 ];
-const PATHS = [[-MX, 8, MW + 2 * MX, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [16, 7, 1, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
+const PATHS = [[-MX, 8, MW + 2 * MX, 2], [15, 10, 2, 7], [5, 7, 1, 1], [11, 7, 1, 1], [18, 7, 11, 1], [16, 7, 1, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 12, 1], [28, 15, 1, 1]];
 const POND = [10, 11, 3, 3];
-const HEDGE_GAPS = [5, 12, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
+const HEDGE_GAPS = [5, 11, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 // Natural edges: small clusters of trees with gaps (no solid wall), plus rocks, bushes, a fence, a meadow and a creek.
 const TREES = [
   [0, 0], [1, 0], [0, 1], [4, 0], [9, 0], [10, 0], [9, 1], [17, 0], [18, 0], [21, 0], [26, 0], [27, 0], [30, 0], [31, 0], [31, 1],
-  [0, 3], [1, 4], [0, 5], [0, 11], [0, 12], [0, 13], [0, 16], [31, 3], [31, 4], [30, 5], [31, 11], [30, 12], [31, 12], [31, 15], [31, 16], [28, 16],
-  [9, 2], [1, 11], [13, 15], [9, 12], [29, 13], [17, 12],
+  [0, 3], [1, 4], [0, 5], [0, 11], [0, 12], [0, 13], [0, 16], [31, 3], [31, 4], [30, 5], [31, 11], [31, 12], [31, 15], [31, 16],
+  [1, 11], [13, 15], [9, 12], [17, 12],
 ];
 const ROCKS = [[4, 16], [29, 16], [19, 1], [31, 6], [6, 0]];
-const BUSHES = [[1, 10], [30, 10], [24, 1], [2, 0], [29, 11]];
-const FENCE = { y: 1, x0: 10, x1: 15 };
+const BUSHES = [[1, 10], [30, 10], [24, 1], [2, 0]];
+const FENCE = { y: 1, x0: 10, x1: 13 };
 const MEADOW = [[1, 15], [2, 15], [3, 15], [1, 16], [2, 16], [3, 16], [1, 14]];
 const CREEK_Y = 17, CREEK_H = 2; // the river along the bottom
 const BULL = [20, 7]; // the bull statue's plinth covers this tile and the next one
@@ -44,9 +44,9 @@ const CHIMNEYS = BUILDINGS.filter((b) => b.chimney).map((b) => [b.x * T + b.w * 
 const ROUTES = [
   { shirt: '#A88E84', hair: '#2E2420', speed: 26, pts: [[-10, 8, 2], [MW + 9, 8, 2.5]] },
   { shirt: '#8E9CAA', hair: '#C9A15B', speed: 22, pts: [[MW + 9, 9, 3], [-10, 9, 2]] },
-  { shirt: '#9C92AA', hair: '#5A3A28', speed: 24, pts: [[15, 9], [15, 16], [6, 16], [6, 15, 2.5], [6, 16], [26, 16], [26, 15, 2], [26, 16], [15, 16], [15, 10]] },
+  { shirt: '#9C92AA', hair: '#5A3A28', speed: 24, pts: [[15, 9], [15, 16], [6, 16], [6, 15, 2.5], [6, 16], [28, 16], [28, 15, 2], [28, 16], [15, 16], [15, 10]] },
   { shirt: '#8EA394', hair: '#2E2420', speed: 25, pts: [[8, 9], [5, 9], [5, 7, 2.5], [5, 9], [23, 9], [23, 7, 2.5], [23, 9]] },
-  { shirt: '#B39AA4', hair: '#7A4A22', speed: 20, pts: [[16, 10], [16, 16], [17, 16, 1.5], [16, 16], [16, 9], [12, 9], [12, 7, 2], [12, 9], [16, 9]] },
+  { shirt: '#B39AA4', hair: '#7A4A22', speed: 20, pts: [[16, 10], [16, 16], [17, 16, 1.5], [16, 16], [16, 9], [11, 9], [11, 7, 2], [11, 9], [16, 9]] },
 ];
 const QUEUE_SPOTS = [[21, 15], [22, 15], [23, 15], [24, 15]];
 const QUEUE_LOOK = [['#B8A27E', '#2E2420'], ['#8AA3A3', '#C9A15B'], ['#AE8C84', '#5A3A28'], ['#9AA6B4', '#7A4A22']];
