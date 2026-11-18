@@ -11,15 +11,19 @@ Each kid starts with **$1,000** and has **10 years** to grow it. They walk aroun
 - **Mine**: one shift a year at a rock wall. You get 25 swings: dirt breaks in 1 hit, rock in 2, granite in 3. Ore (coal, iron, silver, gold) hides in connected veins, so once you find some, follow the sparkles to the rest — 3+ ore blocks in a row from one vein earn a bonus. Same wall for everyone each year; no betting, nothing to lose
 - **Dock**: go fishing off the pier on the river — 3 casts a year. Each right answer to an investing question sends your lure one level deeper (and the questions get harder); the first wrong answer stops it and shows the right answer. Then reel up and steer the hook into fish — deeper fish are worth more, your rod holds 4, and junk pays nothing
 - **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
-- **Home**: go to sleep to end the year and see what happened
+- **Shop**: hats, a scooter or bike, and treats. They're fun *wants*, but the money is spent, not invested. Each item shows what that money could have grown into instead
+- **Home**: fix up your home with upgrades that pay you back every year (garden, solar panels, a workshop for more mine swings, a tackle shed for a bigger rod), then go to sleep to end the year and see what happened
 
 Each year can also bring a **life event**: surprise money (birthday gift, a contest prize) or a bill (vet visit, cracked phone). Bills come out of cash, then savings — and if that's not enough, the game sells your investments or takes out an emergency loan. That's the lesson behind keeping an emergency fund.
 
-At the end, kids see their **final score** (net worth: show it to the club leader; the highest wins Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free, Business Owner, Rainy Day Ready.
+At the end, kids see their **final score** (net worth: show it to the club leader; the highest wins Top Grower) and the achievements they unlocked: Spread the Risk, Steady Hands, Safety Net, Hype Detector, Debt Free, Business Owner, Rainy Day Ready, Master Angler, and Treat Yourself (Wisely).
 
 ### Running it in class
 - Play link: **https://creightonwjones-hue.github.io/TSIF-Software/**
-- Everyone should play the **same game** so it's fair. Pick it on the start screen, or share a link like `…/TSIF-Software/?scenario=2`.
+- **Club leader page: https://creightonwjones-hue.github.io/TSIF-Software/leader.html**
+  - Pick the game, choose whether to skip the walking tutorial, and copy your **class link** to post (for example in Google Classroom). The link locks everyone into the same game.
+  - With **year codes** on, kids need that year's 3-letter code to go to sleep at Home, so the whole class moves together. Show or read out each code from the leader page when everyone's ready (there's also a printable list). Codes come from your class key, so they work offline; making a new key changes them.
+- Everyone should play the **same game** so it's fair. Use the class link, pick it on the start screen, or share a link like `…/TSIF-Software/?game=2`.
   - Game 1: The Great Slump · Game 2: Wild Weather · Game 3: Boom Town
 - Controls: arrow keys / WASD, or tap the map. The **End Year** button in the top bar works too.
 - If a kid refreshes the page, they can pick up where they left off (saved on their device only).

@@ -37,6 +37,28 @@ export const SETTINGS = {
     junk: ['Old Boot', 'Tin Can', 'Seaweed'], // takes a spot on your rod, pays $0
     perfectBonus: 2, // extra $ for answering every question right on a cast
   },
+  // The Shop: "wants". Fun to have, but the money is spent — it doesn't grow or count toward net worth.
+  // kind: hat (wear one at a time), ride (move faster in town), treat (one-time fun, once a year each)
+  shop: [
+    { id: 'cap',       kind: 'hat',   name: 'Ball cap',        price: 15,  desc: 'A classic. Looks sharp on Main Street.' },
+    { id: 'beanie',    kind: 'hat',   name: 'Beanie',          price: 15,  desc: 'Cozy for winter years.' },
+    { id: 'shades',    kind: 'hat',   name: 'Sunglasses',      price: 20,  desc: 'Too cool for the bank lobby.' },
+    { id: 'tophat',    kind: 'hat',   name: 'Top hat',         price: 40,  desc: 'Very fancy. Very unnecessary.' },
+    { id: 'crown',     kind: 'hat',   name: 'Gold crown',      price: 120, desc: 'Fit for a CEO. Costs like one, too.' },
+    { id: 'scooter',   kind: 'ride',  name: 'Scooter',         price: 40,  desc: 'Zip around town a bit faster.', speed: 1.3 },
+    { id: 'bike',      kind: 'ride',  name: 'Bike',            price: 90,  desc: 'Get around town much faster.', speed: 1.6 },
+    { id: 'icecream',  kind: 'treat', name: 'Ice cream',       price: 5,   desc: 'A sweet treat. Gone in five minutes.' },
+    { id: 'videogame', kind: 'treat', name: 'New video game',  price: 45,  desc: 'Fun for a week, then on the shelf.' },
+    { id: 'concert',   kind: 'treat', name: 'Concert ticket',  price: 60,  desc: 'One amazing night out.' },
+  ],
+  // Home upgrades: things you buy once that pay you back over time (like a real asset).
+  homeUpgrades: [
+    { id: 'garden',   name: 'Vegetable garden', price: 60,  yearly: 10, desc: 'Grow your own food. Saves $10 on groceries every year.' },
+    { id: 'solar',    name: 'Solar panels',     price: 200, yearly: 30, desc: 'Make your own electricity. Saves $30 every year.' },
+    { id: 'workshop', name: 'Workshop',         price: 90,  swings: 3,  desc: 'Sharpen your pickaxe: +3 swings at the mine every year.' },
+    { id: 'tackle',   name: 'Tackle shed',      price: 90,  capacity: 1, desc: 'Better gear: your fishing rod holds 5 instead of 4.' },
+  ],
+  wantsGrowth: 0.06, // rough yearly growth used for the "if you invested it instead" hint in the shop
   // Lemonade Stand: one shift per year. Earnings depend on upgrades, not click speed.
   business: {
     customers: 10,     // customers per shift

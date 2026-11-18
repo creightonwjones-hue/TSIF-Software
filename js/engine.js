@@ -81,6 +81,9 @@ export function createGame(scenarioId = 1, nickname = 'Player', avatar = '🦊')
     events: {},                       // life events already applied, by year
     mine: {},                         // mine shift pay, by year
     fish: {},                         // fishing casts, by year: [{ asked, correct, depth, caught, earned }]
+    wants: { owned: {}, hat: null, ride: null, treats: {} }, // shop purchases (fun, but they don't grow)
+    home: { owned: {} },              // home upgrades (pay you back each year)
+    classMode: null,                  // { key, codes, tutorial } when playing from a club leader's class link
     history: [SETTINGS.startingCash], // net worth at start, then at the end of each year
     log: [],       // every action: { year, type, id, qty, amount }
     yearEnds: [],  // facts about each year, used for awards
@@ -333,13 +336,13 @@ export function mineWall(state) {
 }
 
 // Replay a list of hits (block indexes) on a wall. Pure, shared by the screen and runMine.
-export function mineProgress(wall, hits) {
+export function mineProgress(wall, hits, swings = MINE.swings) {
   const dmg = new Array(wall.blocks.length).fill(0), broken = new Array(wall.blocks.length).fill(false);
   const found = [], bonuses = [];
   let earned = 0, streakVein = -1, streak = 0;
   for (let h = 0; h < hits.length; h++) {
     const i = hits[h];
-    if (h >= MINE.swings) return { error: `You only get ${MINE.swings} swings.` };
+    if (h >= swings) return { error: `You only get ${swings} swings.` };
     if (!Number.isInteger(i) || i < 0 || i >= wall.blocks.length) return { error: 'That\'s not part of the wall.' };
     if (broken[i]) return { error: 'That block is already broken.' };
     dmg[i] += 1;
@@ -361,7 +364,7 @@ export function mineProgress(wall, hits) {
     const r = Math.floor(i / wall.cols) + dr, c = (i % wall.cols) + dc, j = r * wall.cols + c;
     return r >= 0 && r < wall.rows && c >= 0 && c < wall.cols && broken[j] && wall.blocks[j].ore;
   }));
-  return { dmg, broken, found, earned: round2(earned), swingsLeft: MINE.swings - hits.length, sparkle, streak };
+  return { dmg, broken, found, earned: round2(earned), swingsLeft: swings - hits.length, sparkle, streak };
 }
 
 export const mineDone = (state) => (state.mine || {})[state.year] != null;
@@ -372,7 +375,7 @@ export function runMine(state, hits) {
   if (!state.mine) state.mine = {};
   if (mineDone(state)) return fail('You already worked in the mine this year.');
   if (!Array.isArray(hits)) return fail('No shift to pay.');
-  const p = mineProgress(mineWall(state), hits);
+  const p = mineProgress(mineWall(state), hits, mineSwings(state));
   if (p.error) return fail(p.error);
   state.cash = round2(state.cash + p.earned);
   state.mine[state.year] = p.earned;
@@ -457,7 +460,7 @@ export function runCast(state, { answers, caught } = {}) {
   const p = castProgress(state, answers);
   if (p.error) return fail(p.error);
   if (!p.finished) return fail('The lure is still sinking. Answer the question first!');
-  if (caught.length > FISH.capacity) return fail(`Your rod only holds ${FISH.capacity}.`);
+  if (caught.length > rodCapacity(state)) return fail(`Your rod only holds ${rodCapacity(state)}.`);
   if (new Set(caught).size !== caught.length) return fail('You can\'t hook the same fish twice.');
   const school = fishSchool(state);
   const items = caught.map((id) => school.find((f) => f.id === id));
@@ -474,6 +477,91 @@ export function fishStats(state) {
   let right = 0, asked = 0, casts = 0, deepest = 0;
   for (const year of Object.values(state.fish || {})) for (const c of year) { right += c.correct; asked += c.asked.length; casts++; deepest = Math.max(deepest, c.depth); }
   return { right, asked, casts, deepest };
+}
+
+// ---------- The Shop: "wants" (fun, but the money is spent and doesn't grow) ----------
+const SHOP = SETTINGS.shop, HOME = SETTINGS.homeUpgrades;
+export function ensureExtras(state) { // older saves don't have these yet
+  if (!state.wants) state.wants = { owned: {}, hat: null, ride: null, treats: {} };
+  if (!state.wants.treats) state.wants.treats = {};
+  if (!state.home) state.home = { owned: {} };
+  return state;
+}
+export const shopItem = (id) => SHOP.find((i) => i.id === id);
+export const ownsWant = (state, id) => !!ensureExtras(state).wants.owned[id];
+export const treatBoughtThisYear = (state, id) => (ensureExtras(state).wants.treats[state.year] || []).includes(id);
+export function buyWant(state, id) {
+  if (playing(state)) return playing(state);
+  ensureExtras(state);
+  const item = shopItem(id);
+  if (!item) return fail('That item isn\'t for sale.');
+  if (item.kind !== 'treat' && ownsWant(state, id)) return fail('You already have that.');
+  if (item.kind === 'treat' && treatBoughtThisYear(state, id)) return fail('You already had that this year.');
+  if (state.cash < item.price) return fail('Not enough cash. (The shop doesn\'t take loans — and you shouldn\'t borrow for wants!)');
+  state.cash = round2(state.cash - item.price);
+  const w = state.wants;
+  if (item.kind === 'treat') w.treats[state.year] = [...(w.treats[state.year] || []), id];
+  else w.owned[id] = state.year;
+  if (item.kind === 'hat') w.hat = id;
+  if (item.kind === 'ride' && (!w.ride || item.speed > shopItem(w.ride).speed)) w.ride = id;
+  return record(state, 'want', id, 1, item.price);
+}
+export function wearHat(state, id) {
+  ensureExtras(state);
+  if (id && (!ownsWant(state, id) || shopItem(id)?.kind !== 'hat')) return fail('You don\'t own that hat.');
+  state.wants.hat = id || null;
+  return { ok: true };
+}
+export const rideSpeed = (state) => (ensureExtras(state).wants.ride ? shopItem(state.wants.ride).speed : 1);
+export const wantsSpent = (state) => round2(state.log.filter((e) => e.type === 'want').reduce((t, e) => t + e.amount, 0));
+// What the want money would be worth now if it had gone into the Sprout City Index the year it was spent.
+export function opportunityCost(state) {
+  const basket = state.stockPaths.basket, now = Math.min(idx(state), YEARS);
+  return round2(state.log.filter((e) => e.type === 'want').reduce((t, e) => t + e.amount * basket[now] / basket[e.year - 1], 0));
+}
+
+// ---------- Home upgrades: assets that pay you back ----------
+export const homeUpgrade = (id) => HOME.find((u) => u.id === id);
+export const ownsUpgrade = (state, id) => !!ensureExtras(state).home.owned[id];
+export function buyHomeUpgrade(state, id) {
+  if (playing(state)) return playing(state);
+  const u = homeUpgrade(id);
+  if (!u) return fail('That upgrade doesn\'t exist.');
+  if (ownsUpgrade(state, id)) return fail('You already have that.');
+  if (state.cash < u.price) return fail('Not enough cash for that upgrade.');
+  state.cash = round2(state.cash - u.price);
+  state.home.owned[id] = state.year;
+  return record(state, 'homeUpgrade', id, 1, u.price);
+}
+const upgradeSum = (state, key) => HOME.reduce((t, u) => t + (ownsUpgrade(state, u.id) ? u[key] || 0 : 0), 0);
+export const homeYearly = (state) => upgradeSum(state, 'yearly');
+export const mineSwings = (state) => MINE.swings + upgradeSum(state, 'swings');
+export const rodCapacity = (state) => FISH.capacity + upgradeSum(state, 'capacity');
+export const homeEarned = (state) => round2(state.log.filter((e) => e.type === 'homePay').reduce((t, e) => t + e.amount, 0));
+
+// ---------- Leader controls: year codes so the class ends each year together ----------
+const CODE_ABC = 'ACDEFGHJKMNPQRTUVWXY'; // no look-alikes (0/O, 1/I/L, B/8, S/5)
+export function yearCode(key, year) {
+  const used = new Set();
+  for (let y = 1; y <= year; y++) {
+    let code = '', salt = 0;
+    do {
+      let n = hashStr(`${String(key).toUpperCase()}|${y}|${salt++}`);
+      code = '';
+      for (let i = 0; i < 3; i++) { code += CODE_ABC[n % CODE_ABC.length]; n = Math.floor(n / CODE_ABC.length); }
+    } while (used.has(code));
+    used.add(code);
+    if (y === year) return code;
+  }
+  return '';
+}
+export const checkYearCode = (state, typed) => !state.classMode?.codes
+  || String(typed || '').trim().toUpperCase() === yearCode(state.classMode.key, state.year);
+
+// Money earned by working: lemonade shifts, the mine, and fishing.
+export function workEarned(state) {
+  const sum = (o) => Object.values(o || {}).reduce((t, v) => t + v, 0);
+  return round2(sum(ensureBiz(state).shifts) + sum(state.mine) + Object.values(state.fish || {}).flat().reduce((t, c) => t + c.earned, 0));
 }
 
 // How many different things you own. The Basket counts as 4 because it holds every company.
@@ -514,6 +602,8 @@ export function advanceYear(state) {
   ensureBiz(state);
   const helperPay = bizYearly(state);
   state.cash = round2(state.cash + helperPay);
+  const homePay = homeYearly(state);
+  if (homePay) { state.cash = round2(state.cash + homePay); record(state, 'homePay', 'home', 1, homePay); }
   const shiftPay = state.biz.shifts[y] || 0;
   const minePay = (state.mine || {})[y] || 0;
   const fishPay = round2(((state.fish || {})[y] || []).reduce((t, c) => t + c.earned, 0));
@@ -532,7 +622,7 @@ export function advanceYear(state) {
 
   return {
     year: y, outcome: ev.outcome || '', lesson: ev.lesson || null,
-    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay, minePay, fishPay, event,
+    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay, minePay, fishPay, homePay, event,
     movers, netBefore: before, netAfter: after, finished: state.finished,
   };
 }
@@ -546,6 +636,7 @@ export const AWARD_INFO = {
   founder:     { emoji: '🍋', name: 'Business Owner',  desc: 'Ran your lemonade stand every year.' },
   rainy:       { emoji: '☂️', name: 'Rainy Day Ready', desc: 'Paid every surprise bill without selling or borrowing.' },
   angler:      { emoji: '🎣', name: 'Master Angler',   desc: 'Answered your way down to The Abyss.' },
+  balanced:    { emoji: '🍦', name: 'Treat Yourself (Wisely)', desc: 'Bought something fun, but spent no more than 10% of your work money on wants.' },
 };
 
 export function computeAwards(state) {
@@ -565,6 +656,8 @@ export function computeAwards(state) {
   earned.rainy = state.finished && !state.log.some((e) => e.type === 'forcedSell' || e.type === 'emergencyLoan');
   earned.founder = Array.from({ length: YEARS }, (_, i) => shifts[i + 1] != null).every(Boolean);
   earned.angler = fishStats(state).deepest >= BANDS;
+  const spent = wantsSpent(state);
+  earned.balanced = spent > 0 && spent <= 0.1 * workEarned(state);
   return Object.entries(AWARD_INFO).map(([id, info]) => ({ id, ...info, earned: !!earned[id] }));
 }
 

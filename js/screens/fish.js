@@ -158,14 +158,14 @@ export function fishScreen(app) {
       hookX = Math.max(6, Math.min(W - 6, hookX));
       lure.x = hookX; lure.y -= (BH / 1.5) * dt;
       // hook anything you touch (until the rod is full)
-      if (caught.length < F.capacity) for (const f of school) {
+      if (caught.length < E.rodCapacity(s)) for (const f of school) {
         if (caught.includes(f.id) || f.band >= progress().depth) continue;
         const p = pos.get(f.id), fy = WT + f.band * BH + f.y * BH;
         if (Math.abs(p.x - lure.x) < 7 && Math.abs(fy - lure.y) < 5) {
           caught.push(f.id); save(); renderSide();
           sound(f.junk ? 'bad' : 'coin');
           pops.push({ x: Math.min(W - 16, Math.max(16, lure.x)), y: lure.y - 4, t: 0, text: f.junk ? f.name : `+${money(f.value)}`, col: f.junk ? '#D6DAE0' : '#F2D45C' });
-          if (caught.length >= F.capacity) break;
+          if (caught.length >= E.rodCapacity(s)) break;
         }
       }
       if (lure.y <= WT) { lure.y = WT; bank(); }
@@ -283,12 +283,12 @@ export function fishScreen(app) {
         kids.push(h('p', { class: 'q-right' }, 'Answer: ', h('b', {}, q.choices[q.answer])));
         kids.push(h('p', { class: 'q-why' }, q.why));
       }
-      kids.push(h('p', { class: 'hint' }, `Your lure stopped in ${F.bands[progress().depth - 1].name}. Reel in and steer into fish on the way up (← → or drag). Your rod holds ${F.capacity}.`));
+      kids.push(h('p', { class: 'hint' }, `Your lure stopped in ${F.bands[progress().depth - 1].name}. Reel in and steer into fish on the way up (← → or drag). Your rod holds ${E.rodCapacity(s)}.`));
       kids.push(h('div', { class: 'btn-row' }, btn('Reel in! ⤒', reel, 'primary', 'fish-reel')));
     } else if (phase === 'reel' || phase === 'bank') {
       kids.push(h('h2', {}, 'Reel in!'));
       kids.push(h('p', {}, 'Steer with ', h('b', {}, '← →'), ' (or drag on the water) to hook fish. Dodge the junk!'));
-      kids.push(h('div', { class: 'rod-count' }, h('span', {}, 'On your rod'), h('b', {}, `${caught.length} / ${F.capacity}`)));
+      kids.push(h('div', { class: 'rod-count' }, h('span', {}, 'On your rod'), h('b', {}, `${caught.length} / ${E.rodCapacity(s)}`)));
       kids.push(catchList(caught));
     } else if (phase === 'summary' && lastResult) {
       kids.push(h('h2', {}, `Cast ${yearCasts().length} of ${F.casts} done!`));
@@ -306,7 +306,7 @@ export function fishScreen(app) {
       kids.push(h('div', { class: 'shift-count' }, h('span', {}, 'Caught this year'), h('b', {}, money(yearTotal()))));
       kids.push(h('div', { class: 'mine-rules' },
         h('p', {}, h('b', {}, 'Answer questions to go deeper. '), 'Each right answer drops your lure one level, where fish are worth more. The first wrong answer stops it.'),
-        h('p', {}, h('b', {}, 'Then reel up '), `and steer into fish. Your rod holds ${F.capacity} — junk takes a spot and pays nothing.`),
+        h('p', {}, h('b', {}, 'Then reel up '), `and steer into fish. Your rod holds ${E.rodCapacity(s)} — junk takes a spot and pays nothing.`),
         h('div', { class: 'ore-legend' }, ...F.bands.map((b, i) => (i < discovered()
           ? h('div', {}, h('i', { class: 'ore-dot', style: `background:${(LOOK[b.fish] || LOOK.Minnow)[0]}` }), b.fish, h('b', {}, money(b.value)))
           : h('div', { class: 'unknown' }, h('i', { class: 'ore-dot' }), '???', h('b', {}, '?'))))),

@@ -11,6 +11,7 @@ import { homeScreen } from './screens/home.js';
 import { lemonadeScreen } from './screens/lemonade.js';
 import { mineScreen } from './screens/mine.js';
 import { fishScreen } from './screens/fish.js';
+import { shopScreen } from './screens/shop.js';
 import { eventCard } from './screens/event.js';
 import { endScreen } from './screens/end.js';
 
@@ -99,7 +100,8 @@ export const app = {
     });
     const biz = E.ensureBiz(s);
     this.town.setWorld({ name: s.nickname, season, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
-      recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker, casts: s.finished ? 0 : E.castsLeft(s) });
+      recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker, casts: s.finished ? 0 : E.castsLeft(s),
+      hat: E.ensureExtras(s).wants.hat, ride: s.wants.ride, speed: E.rideSpeed(s), garden: E.ownsUpgrade(s, 'garden'), solar: E.ownsUpgrade(s, 'solar') });
   },
 
   // Run an engine action; show the problem kindly if it fails.
@@ -153,6 +155,7 @@ export const app = {
     else if (id === 'lemonade') lemonadeScreen(this);
     else if (id === 'mine') mineScreen(this);
     else if (id === 'dock') fishScreen(this);
+    else if (id === 'shop') shopScreen(this);
     else if (id === 'home') homeScreen(this);
     if (TUTORIAL[this.tutorial]?.[0] === id && id !== 'home') this.setTutorial(this.tutorial + 1);
   },
