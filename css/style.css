@@ -86,7 +86,7 @@ body.playing #hud { display: flex; }
 #town { display: block; touch-action: none; cursor: pointer; image-rendering: pixelated; }
 body:not(.playing) #town-wrap { visibility: hidden; }
 #tutorial {
-  position: absolute; left: 50%; bottom: 14px; transform: translate(-50%, 140%); max-width: min(92vw, 760px);
+  position: absolute; left: 50%; top: 10px; transform: translate(-50%, -140%); max-width: min(92vw, 760px); /* top, so it never covers the dock on the river */
   background: var(--cream); border: 4px solid var(--slate); box-shadow: inset 0 -4px 0 var(--line), 0 5px 0 rgba(20,28,40,.35);
   padding: 8px 16px; font-size: 20px; text-align: center; transition: transform .25s, opacity .25s; pointer-events: none; opacity: 0;
 }
