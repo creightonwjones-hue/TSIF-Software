@@ -191,3 +191,8 @@ The user found the cave-in mineshaft confusing and rejected geodes as too much g
 - The Dock moved from the pond to the river at the bottom of town. The river is now 2 tiles wide (map is 32 × 19), and the cross street ends at a wooden pier where the footbridge used to be. You enter by walking down onto it (`doorTop` buildings). The pond is back to just ducks.
 - No more navy bars: the canvas fills the play area. The whole town still fits at the same scale, and countryside fills the rest (Main Street and the river run on to the edges, with groves, fenced crop fields, bushes, rocks and wildflowers). Townsfolk walk out along Main Street, and weather covers the whole screen. The countryside is look-only.
 - The tutorial bar moved to the top of the screen so it never covers the dock.
+
+## Update 2026-11-18: fishing levels stay hidden until you reach them
+- The lake is taller than the view (each level is 44 px tall), and a camera follows the lure down and back up. You see about 2 levels at a time.
+- Levels below the lure are covered in solid dark water, and level labels only appear once reached. A "Level n · Name" badge shows where the lure is, without revealing how many levels there are (the question panel no longer shows level dots).
+- The fish list in the side panel only shows levels reached in any cast this game (`fishStats().deepest`). The rest are "???".

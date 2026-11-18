@@ -374,3 +374,4 @@ canvas.stand-scene { border: 3px solid var(--slate); height: auto; }
 @keyframes wipe-in { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes wipe-out { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(100% 0 0 0); } }
 @media (max-width: 1000px) { .two-col.fish { grid-template-columns: 1fr; } }
+.ore-legend .unknown { color: var(--muted); }
