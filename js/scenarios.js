@@ -12,10 +12,15 @@ export const SETTINGS = {
   savingsRate: 0.03,   // bank savings interest per year
   loanRate: 0.08,      // loan interest per year
   loanLimit: 500,      // most a player can owe at once (before interest)
-  // The Mine: one shift per year. Rocks with ore show a hint, so careful players find more.
+  // The Mine: one trip per year. Dig your own tunnel; deeper ore is worth more.
+  // Every dig costs energy (dirt 1, hard stone 2), and climbing home costs 1 per level deep.
+  // Cracked rock can't be dug, and it caves in if you dig right next to it without a beam.
   mine: {
-    cols: 6, rows: 4, swings: 10,
-    ore: { coal: { count: 6, value: 1 }, silver: { count: 3, value: 3 }, gold: { count: 2, value: 6 } },
+    cols: 9, rows: 10, energy: 24, beams: 2,
+    ore: { coal: { value: 2, rows: [0, 3], count: 6 }, silver: { value: 4, rows: [3, 6], count: 4 },
+           gold: { value: 8, rows: [6, 8], count: 3 }, gem: { value: 15, rows: [9, 9], count: 1 } },
+    cracked: 9,      // cracked rocks (they like to sit near the good stuff)
+    stoneFrom: 3,    // hard stone starts appearing at this row
   },
   // Lemonade Stand: one shift per year. Earnings depend on upgrades, not click speed.
   business: {
