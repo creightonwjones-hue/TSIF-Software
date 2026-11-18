@@ -1,6 +1,7 @@
 // Sprout City game engine: all the money math, with no screen code.
 // Functions change the game state and return { ok: true } or { ok: false, error }.
 import { SETTINGS, STOCKS, BONDS, SCENARIOS, DEFAULTED_BOND_PRICE } from './scenarios.js';
+import { QUESTIONS } from './questions.js';
 
 const YEARS = SETTINGS.years;
 export const round2 = (n) => Math.round(n * 100) / 100;
@@ -79,6 +80,7 @@ export function createGame(scenarioId = 1, nickname = 'Player', avatar = '🦊')
     biz: { owned: {}, shifts: {} },   // lemonade stand: upgrades bought, money earned per year
     events: {},                       // life events already applied, by year
     mine: {},                         // mine shift pay, by year
+    fish: {},                         // fishing casts, by year: [{ asked, correct, depth, caught, earned }]
     history: [SETTINGS.startingCash], // net worth at start, then at the end of each year
     log: [],       // every action: { year, type, id, qty, amount }
     yearEnds: [],  // facts about each year, used for awards
@@ -378,6 +380,102 @@ export function runMine(state, hits) {
   return { ok: true, earned: p.earned, found: p.found };
 }
 
+// ---------- The Dock: fishing with questions, 3 casts a year ----------
+// The lure lands in band 1 (Shallows). Each right answer sends it one band deeper with a harder
+// question; the first wrong answer stops it. On the way up you hook fish (up to the rod's capacity).
+// Fish are the same for every kid in a given game, year and cast. Questions are picked per kid
+// (so neighbors can't copy) but always from the same difficulty tier, so it stays fair.
+const FISH = SETTINGS.fish;
+const BANDS = FISH.bands.length;
+function hashStr(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+const fishYear = (state) => { if (!state.fish) state.fish = {}; return state.fish[state.year] || []; };
+export const castsLeft = (state) => Math.max(0, FISH.casts - fishYear(state).length);
+export const questionsByTier = (tier) => QUESTIONS.filter((q) => q.tier === tier);
+
+// The question for a given depth (1 = Shallows) on the current cast. `askedThisCast` = ids asked so far.
+export function fishQuestion(state, depth, askedThisCast = []) {
+  const cast = fishYear(state).length;
+  const pool = questionsByTier(depth);
+  const before = [];
+  for (const casts of Object.values(state.fish || {})) for (const c of casts) before.push(...c.asked);
+  const askedTier = [...before, ...askedThisCast].filter((id) => pool.some((q) => q.id === id));
+  const seen = new Set(askedTier.slice(Math.floor(askedTier.length / pool.length) * pool.length)); // repeat only once a tier runs out
+  const options = pool.filter((q) => !seen.has(q.id));
+  const rand = mulberry32(hashStr(`${state.scenarioId}|${state.nickname}|${state.year}|${cast}|${depth}`));
+  const q = options[Math.floor(rand() * options.length)];
+  const order = q.choices.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return { ...q, order };
+}
+
+// Replay a cast's answers (indexes into each question's original choices).
+export function castProgress(state, answers) {
+  const asked = [];
+  let correct = 0, stopped = false;
+  for (let k = 0; k < answers.length; k++) {
+    if (stopped) return { error: 'The lure already stopped.' };
+    if (k >= BANDS) return { error: 'The lure is already at the bottom.' };
+    const q = fishQuestion(state, k + 1, asked);
+    if (!Number.isInteger(answers[k]) || answers[k] < 0 || answers[k] >= q.choices.length) return { error: 'That\'s not one of the answers.' };
+    asked.push(q.id);
+    if (answers[k] === q.answer) correct++; else stopped = true;
+  }
+  const finished = stopped || correct === BANDS;
+  return { asked, correct, stopped, finished, depth: Math.min(BANDS, correct + 1), perfect: correct === BANDS };
+}
+
+// The fish (and junk) swimming in each band on a cast. x/y are 0..1 inside the band, speed is band widths per second.
+export function fishSchool(state, cast = fishYear(state).length) {
+  const rand = mulberry32(getScenario(state.scenarioId).seed * 17 + state.year * 104729 + cast * 7);
+  const items = [];
+  FISH.bands.forEach((b, band) => {
+    const kinds = [...Array(b.count).fill(null), ...Array(b.junk).fill('junk')];
+    kinds.forEach((kind, k) => {
+      const junk = kind === 'junk';
+      items.push({
+        id: `${band}-${k}`, band, junk,
+        name: junk ? FISH.junk[Math.floor(rand() * FISH.junk.length)] : b.fish,
+        value: junk ? 0 : b.value,
+        x: rand(), y: 0.15 + 0.7 * ((k + rand() * 0.6) / kinds.length),
+        dir: rand() < 0.5 ? -1 : 1,
+        speed: (junk ? 0.6 : 1) * b.speed * (0.85 + 0.3 * rand()),
+      });
+    });
+  });
+  return items;
+}
+
+// Pay a finished cast: replays the answers and checks every hooked item could really be reached.
+export function runCast(state, { answers, caught } = {}) {
+  if (playing(state)) return playing(state);
+  if (castsLeft(state) <= 0) return fail('No casts left this year.');
+  if (!Array.isArray(answers) || !Array.isArray(caught)) return fail('No cast to pay.');
+  const p = castProgress(state, answers);
+  if (p.error) return fail(p.error);
+  if (!p.finished) return fail('The lure is still sinking. Answer the question first!');
+  if (caught.length > FISH.capacity) return fail(`Your rod only holds ${FISH.capacity}.`);
+  if (new Set(caught).size !== caught.length) return fail('You can\'t hook the same fish twice.');
+  const school = fishSchool(state);
+  const items = caught.map((id) => school.find((f) => f.id === id));
+  if (items.some((f) => !f || f.band >= p.depth)) return fail('Your lure never went that deep.');
+  const bonus = p.perfect ? FISH.perfectBonus : 0;
+  const earned = round2(items.reduce((t, f) => t + f.value, 0) + bonus);
+  state.cash = round2(state.cash + earned);
+  state.fish[state.year] = [...fishYear(state), { asked: p.asked, correct: p.correct, depth: p.depth, caught: [...caught], earned }];
+  record(state, 'fish', 'dock', caught.length, earned);
+  return { ok: true, earned, bonus, depth: p.depth, correct: p.correct, items };
+}
+
+export function fishStats(state) {
+  let right = 0, asked = 0, casts = 0, deepest = 0;
+  for (const year of Object.values(state.fish || {})) for (const c of year) { right += c.correct; asked += c.asked.length; casts++; deepest = Math.max(deepest, c.depth); }
+  return { right, asked, casts, deepest };
+}
+
 // How many different things you own. The Basket counts as 4 because it holds every company.
 export function diversityCount(state) {
   let n = 0;
@@ -418,6 +516,7 @@ export function advanceYear(state) {
   state.cash = round2(state.cash + helperPay);
   const shiftPay = state.biz.shifts[y] || 0;
   const minePay = (state.mine || {})[y] || 0;
+  const fishPay = round2(((state.fish || {})[y] || []).reduce((t, c) => t + c.earned, 0));
   const event = (state.events || {})[y]?.none ? null : (state.events || {})[y] || null;
 
   const movers = STOCKS.map((s) => {
@@ -433,7 +532,7 @@ export function advanceYear(state) {
 
   return {
     year: y, outcome: ev.outcome || '', lesson: ev.lesson || null,
-    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay, minePay, event,
+    savingsInterest, loanInterest, coupons, justDefaulted, helperPay, shiftPay, minePay, fishPay, event,
     movers, netBefore: before, netAfter: after, finished: state.finished,
   };
 }
@@ -446,6 +545,7 @@ export const AWARD_INFO = {
   debtFree:    { emoji: '🔓', name: 'Debt Free',       desc: 'Finished owing the bank nothing.' },
   founder:     { emoji: '🍋', name: 'Business Owner',  desc: 'Ran your lemonade stand every year.' },
   rainy:       { emoji: '☂️', name: 'Rainy Day Ready', desc: 'Paid every surprise bill without selling or borrowing.' },
+  angler:      { emoji: '🎣', name: 'Master Angler',   desc: 'Answered your way down to The Abyss.' },
 };
 
 export function computeAwards(state) {
@@ -464,6 +564,7 @@ export function computeAwards(state) {
   const shifts = ensureBiz(state).shifts;
   earned.rainy = state.finished && !state.log.some((e) => e.type === 'forcedSell' || e.type === 'emergencyLoan');
   earned.founder = Array.from({ length: YEARS }, (_, i) => shifts[i + 1] != null).every(Boolean);
+  earned.angler = fishStats(state).deepest >= BANDS;
   return Object.entries(AWARD_INFO).map(([id, info]) => ({ id, ...info, earned: !!earned[id] }));
 }
 

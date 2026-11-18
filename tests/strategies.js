@@ -36,6 +36,24 @@ export function randomMiner(wall, seed = 1) {
   for (const i of order) for (let k = 0; k < wall.blocks[i].hp && hits.length < SETTINGS.mine.swings; k++) hits.push(i);
   return hits;
 }
+// A fisher who knows the answers down to `rightUntil` bands, then misses, and hooks the best fish in reach.
+export function fisherCast(g, rightUntil = 3) {
+  const answers = [];
+  for (let d = 1; d <= SETTINGS.fish.bands.length; d++) {
+    const q = E.fishQuestion(g, d, answersAsked(g, answers));
+    const right = d <= rightUntil;
+    answers.push(right ? q.answer : (q.answer + 1) % q.choices.length);
+    if (!right) break;
+  }
+  const p = E.castProgress(g, answers);
+  const caught = E.fishSchool(g).filter((f) => !f.junk && f.band < p.depth)
+    .sort((a, b) => b.value - a.value).slice(0, SETTINGS.fish.capacity).map((f) => f.id);
+  return { answers, caught };
+}
+function answersAsked(g, answers) { return answers.length ? E.castProgress(g, answers).asked : []; }
+export function fisher(g, rightUntil = 3) {
+  while (E.castsLeft(g) > 0) E.runCast(g, fisherCast(g, rightUntil));
+}
 export const strategies = {
   diversifiedPatient: (g) => {
     if (g.year === 1) { E.deposit(g, 200); E.buyBond(g, 'city', 2); }
@@ -50,11 +68,11 @@ export const strategies = {
   },
   workerOnly: (g) => {
     if (g.year === 1) for (const id of ['recipe', 'stand', 'helper']) E.buyUpgrade(g, id);
-    E.runShift(g, 999); E.runMine(g, veinMiner(E.mineWall(g)));
+    E.runShift(g, 999); E.runMine(g, veinMiner(E.mineWall(g))); fisher(g);
   },
   workAndInvest: (g) => {
     if (g.year === 1) { for (const id of ['recipe', 'stand', 'helper']) E.buyUpgrade(g, id); E.deposit(g, 150); E.buyBond(g, 'city', 1); }
-    E.runShift(g, 999); E.runMine(g, veinMiner(E.mineWall(g)));
+    E.runShift(g, 999); E.runMine(g, veinMiner(E.mineWall(g))); fisher(g);
     const q = all(g, 'basket'); if (q > 0) E.buy(g, 'basket', q);
   },
   businessAndInvest: (g) => {

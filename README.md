@@ -9,6 +9,7 @@ Each kid starts with **$1,000** and has **10 years** to grow it. They walk aroun
 - **Stock Exchange**: 12 made-up companies (with ticker symbols) and 3 bonds
 - **Lemonade Stand**: run one shift a year and buy upgrades that grow the business
 - **Mine**: one shift a year at a rock wall. You get 25 swings: dirt breaks in 1 hit, rock in 2, granite in 3. Ore (coal, iron, silver, gold) hides in connected veins, so once you find some, follow the sparkles to the rest — 3+ ore blocks in a row from one vein earn a bonus. Same wall for everyone each year; no betting, nothing to lose
+- **Dock**: go fishing by the pond — 3 casts a year. Each right answer to an investing question sends your lure one level deeper (and the questions get harder); the first wrong answer stops it and shows the right answer. Then reel up and steer the hook into fish — deeper fish are worth more, your rod holds 4, and junk pays nothing
 - **News Stand**: this year's news, plus the occasional "hot tip" (often just hype!)
 - **Home**: go to sleep to end the year and see what happened
 
@@ -25,7 +26,7 @@ At the end, kids see their **final score** (net worth: show it to the club leade
 - No accounts, no data sent anywhere. Kids should use a nickname, not their full name.
 
 ### Editing the game (club members)
-Everything you'd want to change — company names, news headlines, how much the news moves prices, the lemonade stand's prices and upgrades, life events, and what ore is worth in the mine — is in **`js/scenarios.js`**, with comments explaining each part.
+Everything you'd want to change — company names, news headlines, how much the news moves prices, the lemonade stand's prices and upgrades, life events, and what ore and fish are worth — is in **`js/scenarios.js`**, with comments explaining each part. The fishing questions are in **`js/questions.js`** (6 levels of difficulty; add your own!).
 
 After editing, run the tests to make sure smart play (spreading money out and staying calm in a crash) still beats gambling, and that the lemonade stand helps without making investing pointless:
 

@@ -179,3 +179,10 @@ The user found the cave-in mineshaft confusing and rejected geodes as too much g
 - 25 swings. Unbroken ore next to broken ore sparkles, so finding the rest of a vein is skill. Breaking the 3rd+ ore block in a row from the same vein adds +$1.
 - No betting and nothing to lose. A vein-following bot averages about $30 a shift; random tapping about $9. The balance rules are unchanged.
 - Shared engine rules (`mineWall`, `mineProgress`, `runMine` replays the hits). An in-progress shift is saved each swing; leaving early banks what's in the cart.
+
+## Update 2026-11-18: the Dock (fishing with questions)
+- A wooden dock on the pond. 3 casts a year. The lure lands in the Shallows; each right answer drops it one band deeper (6 bands: Shallows, Reeds, Rocky Ledge, Deep Water, The Drop-off, The Abyss) with a harder question tier. The first wrong answer stops it and shows the right answer with a one-line "why".
+- Reel up: steer the hook (arrow keys / drag) into fish on the way back. The rod holds 4. Fish pay $1, $1, $2, $3, $4, $5 by band; junk (boot, can, seaweed) takes a slot and pays $0. Answering all 6 right adds a $2 bonus.
+- 72 questions in `js/questions.js` (12 per tier). Questions are picked per kid (seeded by nickname, so neighbors get different ones) from the same tier; no repeats within a tier until it runs out. Fish are the same for every kid.
+- Engine: `fishQuestion`, `castProgress`, `fishSchool`, `runCast` (replays answers, checks every hooked item was reachable), `castsLeft`, `fishStats`. New award: Master Angler (reached The Abyss).
+- Balance (perfect catches): $12/yr knowing nothing, ~$33/yr reaching band 4, $60/yr perfect. Working + investing still beats working only by 30%+.

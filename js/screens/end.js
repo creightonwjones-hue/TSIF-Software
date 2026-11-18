@@ -32,6 +32,8 @@ function recap(s, awards) {
     : `You paid ${money(bills)} in surprise bills without selling or borrowing — that's an emergency fund at work.`);
   const mined = Object.values(s.mine || {}).reduce((a, b) => a + b, 0);
   if (mined > 0) lines.push(`You earned ${money(mined)} working at the mine.`);
+  const fs = E.fishStats(s);
+  if (fs.asked > 0) lines.push(`You answered ${fs.right} of ${fs.asked} fishing questions right${fs.deepest >= SETTINGS.fish.bands.length ? ' and reached The Abyss' : ''}.`);
   const bizTotal = Object.values(E.ensureBiz(s).shifts).reduce((a, b) => a + b, 0);
   const ups = Object.keys(s.biz.owned).length;
   if (bizTotal > 0) lines.push(`Your lemonade stand earned ${money(bizTotal)} from shifts${ups ? `, with ${ups} upgrade${ups === 1 ? '' : 's'}` : ''}.`);

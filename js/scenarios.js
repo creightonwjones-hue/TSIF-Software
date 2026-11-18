@@ -21,6 +21,22 @@ export const SETTINGS = {
     veins: [['coal', 5], ['iron', 4], ['silver', 4], ['gold', 3]], // [ore, blocks in the vein]
     veinBonus: 1,   // extra $ for the 3rd+ ore block in a row from the same vein
   },
+  // The Dock: 3 casts a year. Each right answer (questions are in js/questions.js) sends the lure
+  // one band deeper; the first wrong answer stops it. On the way up you hook fish, up to `capacity`.
+  fish: {
+    casts: 3,
+    capacity: 4,
+    bands: [ // top to bottom. count = fish swimming in that band, speed = how fast they swim
+      { name: 'Shallows',    fish: 'Minnow',     value: 1, count: 4, junk: 1, speed: 0.16 },
+      { name: 'Reeds',       fish: 'Perch',      value: 1, count: 4, junk: 1, speed: 0.18 },
+      { name: 'Rocky Ledge', fish: 'Bass',       value: 2, count: 3, junk: 1, speed: 0.21 },
+      { name: 'Deep Water',  fish: 'Catfish',    value: 3, count: 3, junk: 1, speed: 0.23 },
+      { name: 'The Drop-off', fish: 'Pike',      value: 4, count: 2, junk: 1, speed: 0.27 },
+      { name: 'The Abyss',   fish: 'Golden Koi', value: 5, count: 2, junk: 1, speed: 0.3 },
+    ],
+    junk: ['Old Boot', 'Tin Can', 'Seaweed'], // takes a spot on your rod, pays $0
+    perfectBonus: 2, // extra $ for answering every question right on a cast
+  },
   // Lemonade Stand: one shift per year. Earnings depend on upgrades, not click speed.
   business: {
     customers: 10,     // customers per shift
