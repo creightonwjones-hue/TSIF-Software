@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as E from '../js/engine.js';
 import { SCENARIOS, SETTINGS } from '../js/scenarios.js';
-import { play, strategies, carefulMiner } from './strategies.js';
+import { play, strategies, veinMiner, randomMiner } from './strategies.js';
 
 const M = SETTINGS.mine;
 const yearOf = (sc, pred) => SCENARIOS.find((s) => s.id === sc).years.findIndex(pred) + 1;
@@ -82,117 +82,85 @@ test('every game has some good news and some bills, including a big one right af
 });
 
 // ---------- the mine ----------
-const idx = (map, r, c) => r * map.cols + c;
-// Walk a scripted list of moves from a fresh trip; returns the final trip (or throws on a bad move).
-function walk(map, moves) {
-  let t = E.mineStart();
-  for (const m of moves) { const r = E.mineStep(t, map, m); if (!r.ok) throw new Error(`${m}: ${r.error}`); t = r.trip; }
-  return t;
+// A tiny hand-made wall for exact rule checks: all dirt (1 hit) unless set.
+function testWall(cells = {}) {
+  const blocks = Array.from({ length: M.cols * M.rows }, () => ({ kind: 'dirt', hp: 1, ore: null, vein: -1 }));
+  for (const [i, v] of Object.entries(cells)) blocks[i] = { kind: 'dirt', hp: 1, ore: null, vein: -1, ...v };
+  return { cols: M.cols, rows: M.rows, blocks };
 }
-// A hand-made tiny map for exact rule checks.
-function testMap(cells) { // cells: { 'r,c': {kind, ore} }
-  const tiles = Array.from({ length: M.rows * M.cols }, () => ({ kind: 'dirt', ore: null }));
-  for (const [k, v] of Object.entries(cells)) { const [r, c] = k.split(',').map(Number); tiles[r * M.cols + c] = { kind: 'dirt', ore: null, ...v }; }
-  return { cols: M.cols, rows: M.rows, entry: E.MINE_ENTRY, tiles };
-}
-const E0 = E.MINE_ENTRY;
 
-test('the mine map is the same for everyone in a given year, and different each year', () => {
+test('the mine wall is the same for everyone in a given year, and different each year', () => {
   const a = E.createGame(1), b = E.createGame(1);
-  assert.deepEqual(E.mineMap(a), E.mineMap(b));
-  const first = E.mineMap(a);
+  assert.deepEqual(E.mineWall(a), E.mineWall(b));
+  const first = E.mineWall(a);
   E.advanceYear(a);
-  assert.notDeepEqual(E.mineMap(a), first);
-  assert.equal(first.tiles.length, M.cols * M.rows);
-  assert.ok(first.tiles.some((t) => t.kind === 'cracked'));
-  assert.ok(first.tiles.some((t) => t.ore === 'gold'));
+  assert.notDeepEqual(E.mineWall(a), first);
+  assert.equal(first.blocks.length, M.cols * M.rows);
+  for (const [ore, size] of M.veins) assert.equal(first.blocks.filter((x) => x.ore === ore).length, size, `${ore} vein size`);
 });
 
-test('digging costs energy (dirt 1, stone 2); walking back through your tunnel is free', () => {
-  const map = testMap({ [`1,${E0}`]: { kind: 'stone' } });
-  const t = walk(map, ['D', 'D']);
-  assert.equal(t.energy, M.energy - 1 - 2);
-  const back = walk(map, ['D', 'D', 'U', 'D']);
-  assert.equal(back.energy, t.energy);
+test('dirt breaks in 1 hit, rock in 2, granite in 3', () => {
+  const wall = testWall({ 0: { kind: 'rock', hp: 2, ore: 'coal', vein: 0 }, 1: { kind: 'granite', hp: 3, ore: 'gold', vein: 1 } });
+  assert.equal(E.mineProgress(wall, [0]).broken[0], false);
+  assert.equal(E.mineProgress(wall, [0, 0]).broken[0], true);
+  assert.equal(E.mineProgress(wall, [1, 1]).broken[1], false);
+  const p = E.mineProgress(wall, [1, 1, 1]);
+  assert.equal(p.broken[1], true);
+  assert.equal(p.earned, M.ore.gold);
 });
 
-test('you can\'t dig upward, dig off the edge, or dig cracked rock', () => {
-  const map = testMap({ [`1,${E0 + 1}`]: { kind: 'cracked' } });
-  let t = walk(map, ['D', 'L']);
-  assert.equal(E.mineStep(t, map, 'U').ok, false, 'no digging up into solid rock');
-  const beside = walk(map, ['D', 'brace', 'D']); // braced, standing right next to the cracked rock
-  const r = E.mineStep(beside, map, 'R');
-  assert.equal(r.ok, false);
-  assert.match(r.error, /cracked/, 'cracked rock can\'t be dug');
-  const edge = walk(map, ['D', ...Array(E0).fill('L')]);
-  assert.equal(E.mineStep(edge, map, 'L').ok, false, 'bedrock at the edge');
+test('ore pays only when its block breaks; empty blocks pay nothing', () => {
+  const wall = testWall({ 5: { ore: 'silver', vein: 0 } });
+  assert.equal(E.mineProgress(wall, [4, 6]).earned, 0);
+  assert.equal(E.mineProgress(wall, [5]).earned, M.ore.silver);
 });
 
-test('ore adds to your haul; heading home banks it and costs 1 energy per level', () => {
-  const map = testMap({ [`0,${E0}`]: { ore: 'coal' }, [`1,${E0}`]: { ore: 'silver' } });
-  let t = walk(map, ['D', 'D']);
-  assert.equal(t.haul, M.ore.coal.value + M.ore.silver.value);
-  const energy = t.energy;
-  t = E.mineStep(t, map, 'home').trip;
-  assert.equal(t.status, 'home');
-  assert.equal(t.paid, M.ore.coal.value + M.ore.silver.value);
-  assert.equal(t.energy, energy - 2);
+test('vein bonus: the 3rd+ ore block in a row from the same vein earns extra', () => {
+  const vein = { ore: 'iron', vein: 0 };
+  const wall = testWall({ 0: vein, 1: vein, 2: vein, 3: vein });
+  assert.equal(E.mineProgress(wall, [0, 1, 2, 3]).earned, 4 * M.ore.iron + 2 * M.veinBonus);
+  assert.equal(E.mineProgress(wall, [0, 1, 20, 2, 3]).earned, 4 * M.ore.iron, 'breaking an empty block resets the streak');
 });
 
-test('digging next to cracked rock without a beam causes a cave-in and you lose the haul', () => {
-  const map = testMap({ [`0,${E0}`]: { ore: 'gold' }, [`1,${E0 + 1}`]: { kind: 'cracked' } });
-  const t = walk(map, ['D', 'D']); // (1, entry) is right next to the cracked rock
-  assert.equal(t.status, 'caved');
-  assert.equal(t.paid, 0);
-  assert.equal(t.lost, M.ore.gold.value);
+test('ore next to broken ore sparkles (follow the vein)', () => {
+  const vein = { ore: 'gold', vein: 0 };
+  const wall = testWall({ 0: vein, 1: vein });
+  assert.equal(E.mineProgress(wall, []).sparkle[1], false, 'hidden at the start');
+  assert.equal(E.mineProgress(wall, [0]).sparkle[1], true);
+  assert.equal(E.mineProgress(wall, [0]).sparkle[M.cols], false, 'empty neighbors never sparkle');
 });
 
-test('bracing first makes it safe (and uses a beam)', () => {
-  const map = testMap({ [`0,${E0}`]: { ore: 'gold' }, [`1,${E0 + 1}`]: { kind: 'cracked' } });
-  const t = walk(map, ['D', 'brace', 'D']);
-  assert.equal(t.status, 'digging');
-  assert.equal(t.beams, M.beams - 1);
-  assert.equal(t.haul, M.ore.gold.value);
-  assert.equal(E.mineStep(walk(map, ['D', 'brace', 'D', 'brace', 'brace']), map, 'brace').ok, true); // toggling is fine
+test('the swing limit, bad targets, and already-broken blocks are rejected', () => {
+  const wall = testWall();
+  assert.ok(E.mineProgress(wall, Array.from({ length: M.swings + 1 }, (_, i) => i)).error);
+  assert.ok(E.mineProgress(wall, [999]).error);
+  assert.ok(E.mineProgress(wall, [3, 3]).error, 'dirt is already broken after one hit');
 });
 
-test('not enough energy to climb home? You\'re rescued with half your haul', () => {
-  const cells = {}; for (let r = 0; r < M.rows; r++) cells[`${r},${E0}`] = { ore: r === 0 ? 'gold' : null };
-  const map = testMap(cells);
-  let t = walk(map, ['D', ...Array(M.rows - 1).fill('D')]);
-  t = { ...t, energy: 3 }; // pretend we spent it all
-  t = E.mineStep(t, map, 'home').trip;
-  assert.equal(t.status, 'rescued');
-  assert.equal(t.paid, Math.floor(M.ore.gold.value / 2));
-});
-
-test('runMine replays the trip, pays once per year, and rejects impossible moves', () => {
+test('runMine replays the shift and pays once per year', () => {
   const g = E.createGame(1);
-  const map = E.mineMap(g);
-  const moves = carefulMiner(map);
-  const r = E.runMine(g, moves);
+  const hits = veinMiner(E.mineWall(g));
+  const r = E.runMine(g, hits);
   assert.ok(r.ok && r.earned > 0);
   assert.equal(g.cash, 1000 + r.earned);
-  assert.equal(E.runMine(g, moves).ok, false, 'only one trip a year');
+  assert.equal(E.runMine(g, hits).ok, false, 'only one shift a year');
   assert.equal(E.mineDone(g), true);
   assert.equal(E.advanceYear(g).minePay, r.earned);
-  const h = E.createGame(1);
-  assert.equal(E.runMine(h, ['L']).ok, false, 'must go down first');
+  assert.equal(E.runMine(E.createGame(1), [999]).ok, false);
 });
 
-test('every mine has a safe route to gold, and careful play earns a fair amount', () => {
+test('skill matters: following veins earns a fair amount and far more than random tapping', () => {
   for (const s of SCENARIOS) {
     const g = E.createGame(s.id);
-    const pays = [];
+    let skilled = 0, random = 0;
     for (let y = 1; y <= 10; y++) {
-      const r = E.runMine(g, carefulMiner(E.mineMap(g)));
-      assert.equal(r.trip.status, 'home', `${s.name} year ${y}: careful miner gets home safely`);
-      assert.ok(r.trip.found.includes('gold') || r.earned >= 14, `${s.name} year ${y}: worth the trip`);
-      pays.push(r.earned);
+      const wall = E.mineWall(g);
+      skilled += E.mineProgress(wall, veinMiner(wall)).earned;
+      for (let k = 1; k <= 10; k++) random += E.mineProgress(wall, randomMiner(wall, k * 13 + y)).earned / 10;
       E.advanceYear(g);
     }
-    const avg = pays.reduce((a, b) => a + b, 0) / pays.length;
-    assert.ok(avg >= 15 && avg <= 35, `${s.name}: careful trips average ${avg}`);
+    assert.ok(skilled / 10 >= 20 && skilled / 10 <= 40, `${s.name}: skilled shifts average ${skilled / 10}`);
+    assert.ok(skilled > random * 2, `${s.name}: skilled ${skilled} vs random ${random}`);
   }
 });
 

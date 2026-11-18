@@ -12,15 +12,14 @@ export const SETTINGS = {
   savingsRate: 0.03,   // bank savings interest per year
   loanRate: 0.08,      // loan interest per year
   loanLimit: 500,      // most a player can owe at once (before interest)
-  // The Mine: one trip per year. Dig your own tunnel; deeper ore is worth more.
-  // Every dig costs energy (dirt 1, hard stone 2), and climbing home costs 1 per level deep.
-  // Cracked rock can't be dug, and it caves in if you dig right next to it without a beam.
+  // The Mine: one shift per year. Swing your pickaxe at a rock wall; ore hides inside and
+  // runs in veins (follow the vein!). Dirt breaks in 1 hit, rock in 2, granite in 3.
   mine: {
-    cols: 9, rows: 10, energy: 24, beams: 2,
-    ore: { coal: { value: 2, rows: [0, 3], count: 6 }, silver: { value: 4, rows: [3, 6], count: 4 },
-           gold: { value: 8, rows: [6, 8], count: 3 }, gem: { value: 15, rows: [9, 9], count: 1 } },
-    cracked: 9,      // cracked rocks (they like to sit near the good stuff)
-    stoneFrom: 3,    // hard stone starts appearing at this row
+    cols: 10, rows: 6, swings: 25,
+    hardness: { dirt: 0.35, rock: 0.4, granite: 0.25 },   // how much of the wall is each kind
+    ore: { coal: 1, iron: 2, silver: 3, gold: 5 },         // pay per ore block
+    veins: [['coal', 5], ['iron', 4], ['silver', 4], ['gold', 3]], // [ore, blocks in the vein]
+    veinBonus: 1,   // extra $ for the 3rd+ ore block in a row from the same vein
   },
   // Lemonade Stand: one shift per year. Earnings depend on upgrades, not click speed.
   business: {

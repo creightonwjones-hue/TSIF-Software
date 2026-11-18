@@ -294,151 +294,88 @@ export function applyEvent(state) {
   return r;
 }
 
-// ---------- The Mine: dig your own tunnel, one trip a year ----------
-// The map is the same for every kid in a given game and year. Rules (shared by the screen and the tests):
-//  - Move left/right/down by digging (dirt costs 1 energy, hard stone 2). Walking through your own tunnel is free.
-//  - You can only go up through tunnel you've already dug.
-//  - Cracked rock can't be dug, and digging a tile right next to cracked rock makes it cave in
-//    (you lose this trip's haul) — unless you brace first with a support beam.
-//  - Head home any time: climbing costs 1 energy per level. Not enough energy? You're rescued with half your haul.
+// ---------- The Mine: a rock wall with hidden ore veins, one shift a year ----------
+// The wall is the same for every kid in a given game and year. You can see how hard each block is,
+// but not what's inside. Ore runs in veins: once you break into one, the ore blocks next to it sparkle.
 const MINE = SETTINGS.mine;
-export const MINE_ENTRY = Math.floor(MINE.cols / 2);
-const mIdx = (r, c) => r * MINE.cols + c;
-const inMine = (r, c) => r >= 0 && r < MINE.rows && c >= 0 && c < MINE.cols;
+const HP = { dirt: 1, rock: 2, granite: 3 };
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-
-function buildMineMap(rand) {
-  const tiles = [];
-  for (let r = 0; r < MINE.rows; r++) for (let c = 0; c < MINE.cols; c++) {
-    const stone = r >= MINE.stoneFrom && rand() < 0.25 + r * 0.04;
-    tiles.push({ kind: stone ? 'stone' : 'dirt', ore: null });
-  }
-  const free = (r, c) => inMine(r, c) && !tiles[mIdx(r, c)].ore && tiles[mIdx(r, c)].kind !== 'cracked' && !(r === 0 && c === MINE_ENTRY);
-  for (const [ore, o] of Object.entries(MINE.ore)) {
-    for (let k = 0, tries = 0; k < o.count && tries < 500; tries++) {
-      const r = o.rows[0] + Math.floor(rand() * (o.rows[1] - o.rows[0] + 1)), c = Math.floor(rand() * MINE.cols);
-      if (free(r, c)) { tiles[mIdx(r, c)].ore = ore; k++; }
+export function mineWall(state) {
+  const rand = mulberry32(getScenario(state.scenarioId).seed * 31 + state.year * 7919);
+  const { cols, rows } = MINE, n = cols * rows;
+  const kinds = Object.entries(MINE.hardness);
+  const blocks = Array.from({ length: n }, () => {
+    let x = rand(), kind = kinds[kinds.length - 1][0];
+    for (const [k, share] of kinds) { if (x < share) { kind = k; break; } x -= share; }
+    return { kind, hp: HP[kind], ore: null, vein: -1 };
+  });
+  // grow each vein from a random start through neighboring blocks
+  MINE.veins.forEach(([ore, size], v) => {
+    for (let tries = 0; tries < 50; tries++) {
+      const start = Math.floor(rand() * n);
+      if (blocks[start].ore) continue;
+      const cells = [start];
+      for (let g = 0; cells.length < size && g < 100; g++) {
+        const from = cells[Math.floor(rand() * cells.length)];
+        const [dr, dc] = N4[Math.floor(rand() * 4)];
+        const r = Math.floor(from / cols) + dr, c = (from % cols) + dc;
+        const i = r * cols + c;
+        if (r >= 0 && r < rows && c >= 0 && c < cols && !blocks[i].ore && !cells.includes(i)) cells.push(i);
+      }
+      if (cells.length < size) continue;
+      for (const i of cells) { blocks[i].ore = ore; blocks[i].vein = v; }
+      break;
     }
-  }
-  // cracked rocks: about half guard the good ore, the rest are scattered deeper down
-  const valuable = tiles.map((t, i) => [t, i]).filter(([t]) => t.ore && t.ore !== 'coal').map(([, i]) => i);
-  let placed = 0;
-  for (let tries = 0; placed < MINE.cracked && tries < 800; tries++) {
-    let r, c;
-    if (placed < Math.ceil(MINE.cracked / 2) && valuable.length) {
-      const v = valuable[Math.floor(rand() * valuable.length)];
-      const [dr, dc] = N4[Math.floor(rand() * 4)];
-      r = Math.floor(v / MINE.cols) + dr; c = (v % MINE.cols) + dc;
-    } else { r = 2 + Math.floor(rand() * (MINE.rows - 2)); c = Math.floor(rand() * MINE.cols); }
-    if (!free(r, c) || r < 1) continue;
-    tiles[mIdx(r, c)].kind = 'cracked'; placed++;
-  }
-  return { cols: MINE.cols, rows: MINE.rows, entry: MINE_ENTRY, tiles };
-}
-const nearCracked = (map, r, c) => N4.some(([dr, dc]) => inMine(r + dr, c + dc) && map.tiles[mIdx(r + dr, c + dc)].kind === 'cracked');
-const digCost = (t) => (t.kind === 'stone' ? 2 : 1);
-
-// Cheapest dig cost from the entrance to every tile, never digging next to cracked rock.
-function safeCosts(map) {
-  const dist = new Array(map.tiles.length).fill(Infinity);
-  const start = mIdx(0, map.entry);
-  if (nearCracked(map, 0, map.entry)) return dist;
-  dist[start] = digCost(map.tiles[start]);
-  const q = [start];
-  while (q.length) {
-    q.sort((a, b) => dist[a] - dist[b]);
-    const i = q.shift(), r = Math.floor(i / map.cols), c = i % map.cols;
-    for (const [dr, dc] of [[1, 0], [0, 1], [0, -1]]) {
-      const nr = r + dr, nc = c + dc;
-      if (!inMine(nr, nc)) continue;
-      const t = map.tiles[mIdx(nr, nc)];
-      if (t.kind === 'cracked' || nearCracked(map, nr, nc)) continue;
-      const d = dist[i] + digCost(t);
-      if (d < dist[mIdx(nr, nc)]) { dist[mIdx(nr, nc)] = d; q.push(mIdx(nr, nc)); }
-    }
-  }
-  return dist;
+  });
+  return { cols, rows, blocks };
 }
 
-export function mineMap(state) {
-  const base = getScenario(state.scenarioId).seed * 31 + state.year * 7919;
-  for (let k = 0; k < 60; k++) { // reroll until there's a safe way to reach gold and get home
-    const map = buildMineMap(mulberry32(base + k * 104729));
-    const dist = safeCosts(map);
-    const ok = map.tiles.some((t, i) => t.ore === 'gold' && dist[i] + Math.floor(i / map.cols) + 1 <= MINE.energy);
-    if (ok) return map;
+// Replay a list of hits (block indexes) on a wall. Pure, shared by the screen and runMine.
+export function mineProgress(wall, hits) {
+  const dmg = new Array(wall.blocks.length).fill(0), broken = new Array(wall.blocks.length).fill(false);
+  const found = [], bonuses = [];
+  let earned = 0, streakVein = -1, streak = 0;
+  for (let h = 0; h < hits.length; h++) {
+    const i = hits[h];
+    if (h >= MINE.swings) return { error: `You only get ${MINE.swings} swings.` };
+    if (!Number.isInteger(i) || i < 0 || i >= wall.blocks.length) return { error: 'That\'s not part of the wall.' };
+    if (broken[i]) return { error: 'That block is already broken.' };
+    dmg[i] += 1;
+    const b = wall.blocks[i];
+    if (dmg[i] < b.hp) continue;
+    broken[i] = true;
+    if (!b.ore) { streak = 0; streakVein = -1; continue; }
+    const value = MINE.ore[b.ore];
+    earned += value;
+    streak = b.vein === streakVein ? streak + 1 : 1;
+    streakVein = b.vein;
+    const bonus = streak >= 3 ? MINE.veinBonus : 0;
+    earned += bonus;
+    found.push({ i, ore: b.ore, value, bonus, hit: h });
+    if (bonus) bonuses.push(h);
   }
-  return buildMineMap(mulberry32(base));
-}
-
-export function mineStart() {
-  return { r: -1, c: MINE_ENTRY, energy: MINE.energy, beams: MINE.beams, brace: false, dug: {}, braced: {},
-    haul: 0, found: [], status: 'digging', paid: 0, moves: [] };
-}
-const cloneTrip = (t) => ({ ...t, dug: { ...t.dug }, braced: { ...t.braced }, found: [...t.found], moves: [...t.moves] });
-
-// Apply one move: 'L', 'R', 'D', 'U', 'brace' or 'home'. Returns { ok, trip, event } or { ok: false, error }.
-export function mineStep(trip, map, move) {
-  if (trip.status !== 'digging') return fail('This trip is over.');
-  const t = cloneTrip(trip);
-  t.moves.push(move);
-  if (move === 'brace') {
-    if (!t.brace && t.beams <= 0) return fail('You\'re out of support beams.');
-    t.brace = !t.brace;
-    return { ok: true, trip: t, event: t.brace ? 'braced' : 'unbraced' };
-  }
-  if (move === 'home' || (move === 'U' && t.r === 0 && t.c === map.entry)) {
-    const climb = t.r + 1;
-    if (t.energy >= climb) { t.energy -= climb; t.status = 'home'; t.paid = t.haul; }
-    else { t.status = 'rescued'; t.paid = Math.floor(t.haul / 2); t.energy = 0; }
-    t.r = -1; t.c = map.entry;
-    return { ok: true, trip: t, event: t.status };
-  }
-  const d = { L: [0, -1], R: [0, 1], D: [1, 0], U: [-1, 0] }[move];
-  if (!d) return fail('Unknown move.');
-  if (t.r === -1 && move !== 'D') return fail('Head down into the mine first.');
-  const nr = t.r + d[0], nc = t.c + d[1];
-  if (!inMine(nr, nc)) return fail('That\'s solid bedrock.');
-  const i = mIdx(nr, nc), tile = map.tiles[i];
-  if (t.dug[i]) { t.r = nr; t.c = nc; return { ok: true, trip: t, event: 'walk' }; }
-  if (move === 'U') return fail('You can\'t dig upward — go around.');
-  if (tile.kind === 'cracked') return fail('That rock is cracked — too dangerous to dig.');
-  const cost = digCost(tile);
-  if (t.energy < cost) return fail('Not enough energy to dig that. Time to head home!');
-  t.energy -= cost;
-  t.dug[i] = true; t.r = nr; t.c = nc;
-  // cracked rock right next to the new hole?
-  const danger = N4.some(([dr, dc]) => { const rr = nr + dr, cc = nc + dc; return inMine(rr, cc) && map.tiles[mIdx(rr, cc)].kind === 'cracked'; });
-  if (danger) {
-    if (t.brace) { t.brace = false; t.beams -= 1; t.braced[i] = true; }
-    else { t.status = 'caved'; t.paid = 0; t.lost = t.haul; t.haul = 0; return { ok: true, trip: t, event: 'caved' }; }
-  }
-  if (tile.ore) { t.haul += MINE.ore[tile.ore].value; t.found.push(tile.ore); return { ok: true, trip: t, event: 'ore', ore: tile.ore }; }
-  return { ok: true, trip: t, event: 'dig' };
+  // ore blocks next to broken ore sparkle ("follow the vein")
+  const sparkle = wall.blocks.map((b, i) => !broken[i] && !!b.ore && N4.some(([dr, dc]) => {
+    const r = Math.floor(i / wall.cols) + dr, c = (i % wall.cols) + dc, j = r * wall.cols + c;
+    return r >= 0 && r < wall.rows && c >= 0 && c < wall.cols && broken[j] && wall.blocks[j].ore;
+  }));
+  return { dmg, broken, found, earned: round2(earned), swingsLeft: MINE.swings - hits.length, sparkle, streak };
 }
 
 export const mineDone = (state) => (state.mine || {})[state.year] != null;
 
-// Replay a whole trip (so the result can't be faked) and pay it. One trip per year.
-export function runMine(state, moves) {
+// Pay a shift: replays the hits so the result can't be faked. One shift per year.
+export function runMine(state, hits) {
   if (playing(state)) return playing(state);
   if (!state.mine) state.mine = {};
   if (mineDone(state)) return fail('You already worked in the mine this year.');
-  if (!Array.isArray(moves)) return fail('No trip to pay.');
-  const map = mineMap(state);
-  let trip = mineStart();
-  for (const m of moves) {
-    if (trip.status !== 'digging') break;
-    const r = mineStep(trip, map, m);
-    if (!r.ok) return fail(`Bad move: ${r.error}`);
-    trip = r.trip;
-  }
-  if (trip.status === 'digging') trip = mineStep(trip, map, 'home').trip;
-  const earned = round2(trip.paid);
-  state.cash = round2(state.cash + earned);
-  state.mine[state.year] = earned;
-  record(state, 'mine', trip.status, moves.length, earned);
-  return { ok: true, earned, trip };
+  if (!Array.isArray(hits)) return fail('No shift to pay.');
+  const p = mineProgress(mineWall(state), hits);
+  if (p.error) return fail(p.error);
+  state.cash = round2(state.cash + p.earned);
+  state.mine[state.year] = p.earned;
+  record(state, 'mine', 'mine', hits.length, p.earned);
+  return { ok: true, earned: p.earned, found: p.found };
 }
 
 // How many different things you own. The Basket counts as 4 because it holds every company.
