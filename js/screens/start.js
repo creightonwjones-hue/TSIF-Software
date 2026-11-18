@@ -12,7 +12,12 @@ export function showStart(app) {
   const saved = app.loadSave();
   const params = new URLSearchParams(location.search);
   let color = COLORS[0][0];
-  let scenarioId = Number(params.get('scenario')) || 1;
+  let scenarioId = Number(params.get('game') || params.get('scenario')) || 1;
+  if (!SCENARIOS.some((x) => x.id === scenarioId)) scenarioId = 1;
+  // A club leader's class link (made on leader.html): locks the game, can skip the tutorial,
+  // and turns on year codes so the whole class ends each year together.
+  const classKey = (params.get('class') || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase();
+  const classMode = classKey ? { key: classKey, codes: params.get('codes') !== 'off', tutorial: params.get('tutorial') !== 'off' } : null;
 
   const colorRow = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': 'Pick your color' });
   COLORS.forEach(([c, name], i) => {
@@ -37,7 +42,9 @@ export function showStart(app) {
     sound('tada');
     app.clearSave();
     app.close();
-    app.startGame(E.createGame(scenarioId, nick, color));
+    const state = E.createGame(scenarioId, nick, color);
+    state.classMode = classMode;
+    app.startGame(state, classMode && !classMode.tutorial ? 99 : 0);
   };
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
 
@@ -57,8 +64,11 @@ export function showStart(app) {
       resume,
       h('div', { class: 'field' }, h('label', { for: 'nickname' }, 'Nickname'), nameInput, warn),
       h('div', { class: 'field' }, h('label', {}, 'Shirt color'), colorRow),
-      h('div', { class: 'field' }, h('label', { for: 'scenario' }, 'Game ', h('small', {}, '— your club leader will tell you which')), scenarioSelect),
-      h('button', { class: 'btn primary big', type: 'button', id: 'start-btn', onclick: go }, 'Start game ▶')),
+      classMode
+        ? h('div', { class: 'field class-field' }, h('label', {}, 'Game'), h('p', { class: 'class-game' }, `Game ${scenarioId} — ${SCENARIOS.find((x) => x.id === scenarioId).name}`, h('small', {}, ' · set by your club leader')))
+        : h('div', { class: 'field' }, h('label', { for: 'scenario' }, 'Game ', h('small', {}, '— your club leader will tell you which')), scenarioSelect),
+      h('button', { class: 'btn primary big', type: 'button', id: 'start-btn', onclick: go }, 'Start game ▶'),
+      h('p', { class: 'leader-link' }, h('a', { href: 'leader.html' }, 'Club leader? Set up a class link and year codes →'))),
   });
   nameInput.focus();
 }

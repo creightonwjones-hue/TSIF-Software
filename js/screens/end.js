@@ -34,10 +34,13 @@ function recap(s, awards) {
   if (mined > 0) lines.push(`You earned ${money(mined)} working at the mine.`);
   const fs = E.fishStats(s);
   if (fs.asked > 0) lines.push(`You answered ${fs.right} of ${fs.asked} fishing questions right${fs.deepest >= SETTINGS.fish.bands.length ? ' and reached The Abyss' : ''}.`);
+  const spent = E.wantsSpent(s);
+  if (spent > 0) lines.push(`You spent ${money(spent)} on wants. Invested in the Sprout City Index instead, it would be worth about ${money(E.opportunityCost(s))} now.`);
+  if (E.homeEarned(s) > 0) lines.push(`Your home upgrades paid you back ${money(E.homeEarned(s))}.`);
   const bizTotal = Object.values(E.ensureBiz(s).shifts).reduce((a, b) => a + b, 0);
   const ups = Object.keys(s.biz.owned).length;
   if (bizTotal > 0) lines.push(`Your lemonade stand earned ${money(bizTotal)} from shifts${ups ? `, with ${ups} upgrade${ups === 1 ? '' : 's'}` : ''}.`);
-  return lines.slice(0, 6);
+  return lines.slice(0, 8);
 }
 
 export function endScreen(app) {

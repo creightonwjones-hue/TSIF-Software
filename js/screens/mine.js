@@ -25,7 +25,7 @@ export function mineScreen(app) {
   const wall = E.mineWall(s);
   const saved = s.mineTrip && s.mineTrip.year === s.year ? s.mineTrip : null;
   const hits = saved ? [...saved.hits] : [];
-  let prog = E.mineProgress(wall, hits);
+  let prog = E.mineProgress(wall, hits, E.mineSwings(s));
   let cursor = Math.floor(M.rows / 2) * M.cols + Math.floor(M.cols / 2);
   let swing = null, cartCount = prog.found.length;
   const parts = [], pops = [], flying = [];
@@ -42,7 +42,7 @@ export function mineScreen(app) {
     if (done() || prog.swingsLeft <= 0 || prog.broken[i]) { if (prog.broken[i]) sound('click'); return; }
     const before = prog;
     hits.push(i);
-    prog = E.mineProgress(wall, hits);
+    prog = E.mineProgress(wall, hits, E.mineSwings(s));
     s.mineTrip = { year: s.year, hits: [...hits] };
     app.save();
     cursor = i;
@@ -183,7 +183,7 @@ export function mineScreen(app) {
     } else {
       kids.push(h('div', { class: 'swings' },
         h('div', { class: 'energy-top' }, h('small', {}, 'Swings left'), h('b', {}, String(prog.swingsLeft))),
-        h('div', { class: 'energy-bar' }, ...Array.from({ length: M.swings }, (_, k) => h('i', { class: k < prog.swingsLeft ? 'have' : '' })))));
+        h('div', { class: 'energy-bar' }, ...Array.from({ length: E.mineSwings(s) }, (_, k) => h('i', { class: k < prog.swingsLeft ? 'have' : '' })))));
     }
     kids.push(h('div', { class: 'shift-count' }, h('span', {}, 'In your cart'), h('b', {}, money(prog.earned))));
     if (prog.found.length) kids.push(h('div', { class: 'found-row' }, ...Object.entries(counts).map(([ore, n]) =>

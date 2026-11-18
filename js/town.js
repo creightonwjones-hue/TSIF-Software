@@ -14,20 +14,21 @@ const OUTLINE = '#26313F';
 export const BUILDINGS = [
   { id: 'bank', label: 'BANK', x: 2, y: 2, w: 7, h: 5, door: 5, enter: true, civic: true, labelY: 71 },
   { id: 'home', label: 'HOME', x: 11, y: 2, w: 4, h: 5, door: 12, wall: 'sky', roof: 'red', enter: true, chimney: true },
+  { id: 'shop', label: 'SHOP', x: 15, y: 3, w: 3, h: 4, door: 16, wall: 'brick', roof: 'orange', awning: '#E8607A', enter: true, shop: true },
   { id: 'exchange', label: 'STOCK EXCHANGE', x: 19, y: 2, w: 10, h: 5, door: 23, enter: true, civic: true, labelY: 71 },
   { id: 'news', label: 'NEWS', x: 3, y: 11, w: 6, h: 4, door: 6, enter: true, kiosk: true, labelY: 203 },
   { id: 'lemonade', label: 'LEMONADE', x: 19, y: 11, w: 4, h: 4, door: 20, enter: true, stand: true },
   { id: 'mine', label: 'MINE', x: 24, y: 11, w: 5, h: 4, door: 26, enter: true, mine: true },
   { id: 'dock', label: 'DOCK', x: 15, y: 17, w: 2, h: 2, door: 15, enter: true, dock: true, doorTop: true, labelX: 292, labelY: 288 },
 ];
-const PATHS = [[-MX, 8, MW + 2 * MX, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
+const PATHS = [[-MX, 8, MW + 2 * MX, 2], [15, 10, 2, 7], [5, 7, 1, 1], [12, 7, 1, 1], [18, 7, 11, 1], [16, 7, 1, 1], [6, 15, 1, 1], [6, 16, 9, 1], [20, 15, 1, 1], [17, 16, 10, 1], [26, 15, 1, 1]];
 const POND = [10, 11, 3, 3];
 const HEDGE_GAPS = [5, 12, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
 // Natural edges: small clusters of trees with gaps (no solid wall), plus rocks, bushes, a fence, a meadow and a creek.
 const TREES = [
   [0, 0], [1, 0], [0, 1], [4, 0], [9, 0], [10, 0], [9, 1], [17, 0], [18, 0], [21, 0], [26, 0], [27, 0], [30, 0], [31, 0], [31, 1],
   [0, 3], [1, 4], [0, 5], [0, 11], [0, 12], [0, 13], [0, 16], [31, 3], [31, 4], [30, 5], [31, 11], [30, 12], [31, 12], [31, 15], [31, 16], [28, 16],
-  [9, 2], [16, 2], [16, 4], [1, 11], [13, 15], [9, 12], [29, 13], [17, 12],
+  [9, 2], [1, 11], [13, 15], [9, 12], [29, 13], [17, 12],
 ];
 const ROCKS = [[4, 16], [29, 16], [19, 1], [31, 6], [6, 0]];
 const BUSHES = [[1, 10], [30, 10], [24, 1], [2, 0], [29, 11]];
@@ -59,7 +60,7 @@ const SEASONS = {
 
 const ROOF = { blue: ['#4A6A9A', '#3A5680', '#5C7EB0'], red: ['#B4503E', '#8E3E30', '#C8664F'], green: ['#3F7F6A', '#2F6655', '#52957E'],
   orange: ['#D08A3A', '#A86E2A', '#E2A050'], gray: ['#6E7480', '#585D68', '#848A96'] };
-const DOOR_COLOR = { bank: '#2F4E6E', exchange: '#2F6655', home: '#8E3E30' };
+const DOOR_COLOR = { bank: '#2F4E6E', exchange: '#2F6655', home: '#8E3E30', shop: '#3F7F6A' };
 
 // ---------- solid tiles & doors ----------
 const solid = Array.from({ length: MH }, () => Array(MW).fill(false));
@@ -172,7 +173,7 @@ function drawStatic(season) {
     else if (b.kiosk) drawKiosk(c, b, winter);
     else if (b.mine) drawMine(c, b, winter);
     else if (b.dock) drawDock(c, b, winter);
-    else drawBuilding(c, b, winter);
+    else { drawBuilding(c, b, winter); if (b.shop) drawShopWindow(c, b, winter); }
   }
   drawBull(c, winter);
   drawStandBase(c, BUILDINGS.find((b) => b.stand), winter);
@@ -204,7 +205,7 @@ function drawBuilding(c, b, winter) {
     R(c, cx, y + roofH + 3, 5, wallH - 7, '#FFFFFF'); R(c, cx + 4, y + roofH + 3, 1, wallH - 7, '#CFC7B8');
   }
   if (b.awning) for (let i = 0; i < w / 6; i++) R(c, x + i * 6, y + roofH + 3, 6, 4, i % 2 ? '#FFFFFF' : b.awning);
-  const wins = b.columns ? [x + 20, x + w - 34] : b.w <= 4 ? [x + 44] : [x + 8, x + w - 22];
+  const wins = b.shop ? [] : b.columns ? [x + 20, x + w - 34] : b.w <= 4 ? [x + 44] : [x + 8, x + w - 22];
   for (const wx of wins) {
     if (Math.abs(wx + 6 - (doorX + 5)) < 14) continue;
     R(c, wx - 1, y + roofH + 6, 14, 12, '#FFFFFF'); R(c, wx, y + roofH + 7, 12, 10, '#7FB0D6'); R(c, wx + 1, y + roofH + 8, 3, 3, '#D4ECFA');
@@ -226,6 +227,16 @@ function drawBuilding(c, b, winter) {
   }
   R(c, x - 3, y + roofH, w + 6, 2, OUTLINE);
   if (b.chimney) { R(c, x + w - 18, y - 14, 9, 16, '#7A3A2C'); R(c, x + w - 17, y - 14, 7, 2, winter ? '#FFFFFF' : '#93412F'); }
+}
+
+// The shop's display window, with hats on stands.
+function drawShopWindow(c, b, winter) {
+  const x = b.x * T + 4, y = b.y * T + b.h * T - 22;
+  R(c, x - 1, y - 1, 16, 15, '#FFFFFF'); R(c, x, y, 14, 13, '#CFE6F2'); R(c, x, y + 10, 14, 3, '#B08A55');
+  R(c, x + 2, y + 5, 4, 2, '#C8503E'); R(c, x + 1, y + 7, 6, 1, '#A83E30');          // a cap
+  R(c, x + 8, y + 2, 4, 5, '#26313F'); R(c, x + 7, y + 7, 6, 1, '#26313F');          // a top hat
+  R(c, x + 3, y + 8, 1, 2, '#8A6440'); R(c, x + 10, y + 8, 1, 2, '#8A6440');
+  if (winter) R(c, x - 1, y - 2, 16, 1, '#FFFFFF');
 }
 
 // The lemonade stand: a deck, a striped canopy on poles, and a counter with a pitcher, cups and lemons.
@@ -468,8 +479,9 @@ function drawTree(c, tx, ty, season) {
 }
 
 // A person sprite: 12 × 16, four directions, two-frame walk.
-function drawPerson(c, px, py, dir, frame, shirt, hair = '#5A3A28', upperOnly = false) {
+function drawPerson(c, px, py, dir, frame, shirt, hair = '#5A3A28', upperOnly = false, look = {}) {
   const x = Math.round(px) - 6, y = Math.round(py) - 16, O = OUTLINE, SKIN = '#F2CDA6', PANTS = '#34507E';
+  if (look.ride && !upperOnly) drawRide(c, Math.round(px), Math.round(py), look.ride, dir);
   if (!upperOnly) R(c, x + 2, y + 15, 9, 2, 'rgba(0,0,0,.2)');
   R(c, x + 2, y, 8, 1, O); R(c, x + 1, y + 1, 10, 7, O);
   if (dir === 'up') { R(c, x + 2, y + 1, 8, 6, hair); }
@@ -482,10 +494,45 @@ function drawPerson(c, px, py, dir, frame, shirt, hair = '#5A3A28', upperOnly = 
   R(c, x + 1, y + 8, 10, 5, O); R(c, x + 2, y + 8, 8, 4, shirt);
   if (dir === 'down' || dir === 'up') { R(c, x, y + 9, 2, 3, SKIN); R(c, x + 10, y + 9, 2, 3, SKIN); }
   else R(c, dir === 'left' ? x + 4 : x + 6, y + 9, 2, 3, SKIN);
+  drawHat(c, x, y, dir, look.hat);
   if (upperOnly) return;
   const step = frame ? 1 : 0;
   R(c, x + 2, y + 12, 8, 3, O);
   R(c, x + 3, y + 12, 2, 2 - step, PANTS); R(c, x + 7, y + 12, 2, 1 + step, PANTS);
+}
+
+// Shop hats, drawn on top of a person's head (x, y = the sprite's top-left).
+function drawHat(c, x, y, dir, hat) {
+  if (!hat) return;
+  if (hat === 'cap') {
+    R(c, x + 1, y - 1, 10, 3, '#C8503E'); R(c, x + 4, y - 2, 4, 1, '#C8503E');
+    if (dir === 'left') R(c, x - 2, y + 1, 4, 1, '#A83E30'); else if (dir === 'right') R(c, x + 10, y + 1, 4, 1, '#A83E30'); else if (dir === 'down') R(c, x + 2, y + 2, 8, 1, '#A83E30');
+  } else if (hat === 'beanie') {
+    R(c, x + 1, y - 2, 10, 4, '#3E7AB8'); R(c, x + 1, y + 1, 10, 1, '#5C94CC'); R(c, x + 5, y - 4, 2, 2, '#FFFFFF');
+  } else if (hat === 'shades') {
+    if (dir === 'down') { R(c, x + 3, y + 4, 3, 2, '#14110E'); R(c, x + 6, y + 4, 3, 2, '#14110E'); R(c, x + 3, y + 4, 6, 1, '#14110E'); }
+    else if (dir === 'left') R(c, x + 2, y + 4, 4, 2, '#14110E');
+    else if (dir === 'right') R(c, x + 6, y + 4, 4, 2, '#14110E');
+  } else if (hat === 'tophat') {
+    R(c, x - 1, y, 14, 2, '#14110E'); R(c, x + 2, y - 7, 8, 7, '#14110E'); R(c, x + 2, y - 2, 8, 1, '#C8503E'); R(c, x + 3, y - 7, 2, 1, '#3A3A3A');
+  } else if (hat === 'crown') {
+    R(c, x + 1, y - 3, 10, 3, '#F2D45C'); R(c, x + 1, y - 5, 2, 2, '#F2D45C'); R(c, x + 5, y - 6, 2, 3, '#F2D45C'); R(c, x + 9, y - 5, 2, 2, '#F2D45C');
+    R(c, x + 5, y - 2, 2, 1, '#C8503E'); R(c, x + 2, y - 2, 1, 1, '#3E7AB8'); R(c, x + 9, y - 2, 1, 1, '#3E7AB8'); R(c, x + 1, y - 3, 10, 1, '#FFF4B0');
+  }
+}
+
+// Shop rides, drawn under a person's feet (px, py = feet).
+function drawRide(c, px, py, ride, dir) {
+  const side = dir === 'left' || dir === 'right', flip = dir === 'left' ? -1 : 1;
+  if (ride === 'scooter') {
+    if (side) { R(c, px - 6, py - 2, 12, 2, '#9AA0A8'); R(c, px - 7, py, 3, 3, OUTLINE); R(c, px + 4, py, 3, 3, OUTLINE); R(c, px + 5 * flip - (flip < 0 ? 1 : 0), py - 13, 1, 12, '#5E6A78'); R(c, px + 5 * flip - 2, py - 13, 4, 1, '#5E6A78'); }
+    else { R(c, px - 2, py - 3, 4, 6, '#9AA0A8'); R(c, px - 1, py + 3, 2, 2, OUTLINE); R(c, px - 4, py - 12, 8, 1, '#5E6A78'); }
+  } else if (ride === 'bike') {
+    if (side) {
+      for (const wx of [px - 8, px + 3]) { R(c, wx, py - 3, 6, 1, OUTLINE); R(c, wx, py + 2, 6, 1, OUTLINE); R(c, wx - 1, py - 2, 1, 4, OUTLINE); R(c, wx + 6, py - 2, 1, 4, OUTLINE); }
+      R(c, px - 5, py - 2, 11, 1, '#C8503E'); R(c, px - 1, py - 6, 1, 5, '#C8503E'); R(c, px + 5 * flip, py - 9, 1, 8, '#5E6A78'); R(c, px + 5 * flip - 1, py - 9, 3, 1, '#5E6A78');
+    } else { R(c, px - 1, py - 4, 2, 9, OUTLINE); R(c, px - 1, py - 2, 2, 4, '#C8503E'); R(c, px - 5, py - 11, 10, 1, '#5E6A78'); }
+  }
 }
 
 export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {}) {
@@ -566,7 +613,8 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     dx /= len; dy /= len;
     me.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
     me.anim += dt * 8;
-    moveBy(dx * SPEED * dt, dy * SPEED * dt);
+    const sp = SPEED * (world.speed || 1);
+    moveBy(dx * sp * dt, dy * sp * dt);
   }
 
   // ---------- ambient life ----------
@@ -655,6 +703,18 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     // lamp glow
     const glow = 0.18 + Math.sin(sec * 2) * 0.05;
     for (const [lx, ly] of LAMPS) { lg.fillStyle = `rgba(248,224,138,${glow})`; lg.fillRect(lx * T + 2, ly * T - 21, 12, 12); }
+    // home upgrades: a vegetable garden beside the house, solar panels on the roof
+    const home = BUILDINGS.find((b) => b.id === 'home');
+    if (world.garden) {
+      const gx = home.x * T - 15, gy = (home.y + home.h) * T - 30;
+      R(lg, gx, gy, 14, 24, world.season === 'winter' ? '#E6EDF2' : '#6B4A30');
+      for (let k = 0; k < 4; k++) { R(lg, gx + 1, gy + 2 + k * 6, 12, 1, world.season === 'winter' ? '#D6E0E8' : '#5A3A28'); if (world.season !== 'winter') for (let j = 0; j < 3; j++) { R(lg, gx + 2 + j * 4, gy + k * 6, 2, 2, '#5A9A44'); if (k % 2 === 0) R(lg, gx + 3 + j * 4, gy + 1 + k * 6, 1, 1, j === 1 ? '#E8607A' : '#E8A23A'); } }
+    }
+    if (world.solar) for (let k = 0; k < 2; k++) {
+      const sx = home.x * T + 6 + k * 22, sy = home.y * T + 6;
+      R(lg, sx - 1, sy - 1, 20, 14, '#9AA0A8'); R(lg, sx, sy, 18, 12, '#24406A');
+      for (let j = 1; j < 3; j++) R(lg, sx + j * 6, sy, 1, 12, '#3A5E8E'); R(lg, sx, sy + 6, 18, 1, '#3A5E8E'); R(lg, sx + 1, sy + 1, 4, 1, '#7FA8D6');
+    }
     // the stand's helper and upgrades
     const stand = BUILDINGS.find((b) => b.stand);
     if (world.helper) drawPerson(lg, stand.x * T + 46, stand.y * T + 40, 'down', 0, '#5B8DB8', '#C9A15B', true);
@@ -669,7 +729,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     }
     // depth-sort trees, people and the player by their bottom edge
     const items = TREES.map(([x, y]) => ({ y: y * T + 15, fn: () => drawTree(lg, x, y, world.season) }));
-    items.push({ y: me.y, fn: () => drawPerson(lg, me.x, me.y, me.dir, me.moving ? Math.floor(me.anim) % 2 : 0, color) });
+    items.push({ y: me.y, fn: () => drawPerson(lg, me.x, me.y, me.dir, me.moving && !world.ride ? Math.floor(me.anim) % 2 : 0, color, undefined, false, { hat: world.hat, ride: world.ride }) });
     for (const f of folk) items.push({ y: f.y, fn: () => drawPerson(lg, f.x, f.y, f.face, f.moving ? Math.floor(f.anim) % 2 : 0, f.shirt, f.hair) });
     if (!world.shiftDone) QUEUE_SPOTS.forEach(([qx, qy], i) => {
       const bob = !REDUCED && Math.floor(sec * 2 + i) % 4 === 0 ? 1 : 0;

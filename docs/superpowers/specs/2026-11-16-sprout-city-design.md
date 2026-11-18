@@ -196,3 +196,9 @@ The user found the cave-in mineshaft confusing and rejected geodes as too much g
 - The lake is taller than the view (each level is 44 px tall), and a camera follows the lure down and back up. You see about 2 levels at a time.
 - Levels below the lure are covered in solid dark water, and level labels only appear once reached. A "Level n · Name" badge shows where the lure is, without revealing how many levels there are (the question panel no longer shows level dots).
 - The fish list in the side panel only shows levels reached in any cast this game (`fishStats().deepest`). The rest are "???".
+
+## Update 2026-11-18: Shop, Home upgrades, leader controls
+- **Shop** (new building between Home and the Exchange): wants that don't grow and aren't counted in net worth. Hats ($15–$120, wear one, switch free, drawn on your character), rides (scooter 1.3× / bike 1.6× walking speed), and treats (ice cream, video game, concert; each once a year). They're cash only, with no loans. Each card shows what the money could grow to at ~6%/yr. `opportunityCost()` shows what the want money would be worth in the Sprout City Index.
+- **Home** is now a full screen: upgrades (garden $60 → +$10/yr, solar $200 → +$30/yr, workshop $90 → +3 mine swings, tackle shed $90 → rod holds 5) plus the end-the-year panel. The garden and panels appear on the Home building in town.
+- **New award, Treat Yourself (Wisely):** bought a want, but spent no more than 10% of work earnings on wants. The end debrief shows wants spent vs. their Index value, and home-upgrade payback.
+- **Leader controls** (`leader.html`): pick the game, skip the tutorial, and copy a class link (`?game=N&class=KEY[&tutorial=off][&codes=off]`). Year codes are `yearCode(key, year)`, 3 letters with no look-alikes. In class mode the start screen locks the game, and Home asks for the year's code before sleeping. Everything works offline.
