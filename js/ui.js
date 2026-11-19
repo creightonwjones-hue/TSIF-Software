@@ -66,6 +66,15 @@ function tone(freq, start, dur, type = 'sine', vol = 0.08) {
   o.connect(g).connect(ctx.destination);
   o.start(ctx.currentTime + start); o.stop(ctx.currentTime + start + dur + 0.05);
 }
+// A short burst of filtered noise (paper rustle, splash, crowd murmur).
+function noise(start, dur, vol = 0.05, freq = 1200, q = 0.8) {
+  const len = Math.max(1, Math.floor(ctx.sampleRate * dur)), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(vol, ctx.currentTime + start); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+  src.connect(f).connect(g).connect(ctx.destination); src.start(ctx.currentTime + start); src.stop(ctx.currentTime + start + dur + 0.02);
+}
 export function sound(kind) {
   if (muted) return;
   try {
@@ -77,6 +86,18 @@ export function sound(kind) {
     else if (kind === 'bell') { tone(784, 0, 0.6, 'sine', 0.1); tone(1175, 0.02, 0.8, 'sine', 0.05); }
     else if (kind === 'pop') { tone(220 + Math.random() * 200, 0, 0.12, 'square', 0.025); }
     else if (kind === 'tada') { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.12, 0.3, 'triangle', 0.08)); }
+    // a sound for walking into each building
+    else if (kind === 'bank') { tone(1568, 0, 0.5, 'sine', 0.07); tone(2349, 0.01, 0.4, 'sine', 0.03); tone(90, 0.18, 0.18, 'square', 0.05); noise(0.18, 0.08, 0.05, 300); }
+    else if (kind === 'exchange') { noise(0, 0.5, 0.03, 700, 0.5); [880, 1175, 988, 1319].forEach((f, i) => tone(f, 0.05 + i * 0.08, 0.06, 'square', 0.025)); }
+    else if (kind === 'news') { noise(0, 0.07, 0.06, 3000, 1.5); noise(0.09, 0.09, 0.05, 2600, 1.5); noise(0.2, 0.06, 0.04, 3400, 1.5); }
+    else if (kind === 'lemonade') { noise(0, 0.35, 0.035, 900, 0.7); tone(2637, 0.32, 0.12, 'sine', 0.05); tone(3136, 0.4, 0.1, 'sine', 0.04); }
+    else if (kind === 'mine') { tone(110, 0, 0.35, 'triangle', 0.09); tone(110, 0.18, 0.4, 'triangle', 0.04); tone(1760, 0.45, 0.08, 'sine', 0.05); tone(1320, 0.5, 0.12, 'sine', 0.03); }
+    else if (kind === 'dock') { noise(0, 0.35, 0.06, 500, 0.6); tone(1400, 0.35, 0.12, 'triangle', 0.035); tone(1200, 0.48, 0.15, 'triangle', 0.03); }
+    else if (kind === 'shop') { tone(1319, 0, 0.35, 'sine', 0.07); tone(1047, 0.2, 0.45, 'sine', 0.07); }
+    else if (kind === 'home') { tone(392, 0, 0.1, 'triangle', 0.06); tone(523, 0.12, 0.3, 'sine', 0.05); tone(659, 0.24, 0.4, 'sine', 0.04); }
+    // money
+    else if (kind === 'tink') tone(1760 + Math.random() * 400, 0, 0.06, 'square', 0.018);
+    else if (kind === 'spend') { noise(0, 0.05, 0.05, 2000, 1); tone(1976, 0.06, 0.08, 'square', 0.03); tone(2637, 0.12, 0.2, 'square', 0.03); }
   } catch { /* audio not available */ }
 }
 
@@ -167,6 +188,44 @@ export function amountPicker({ value = 1, step = 1, min = 1, max = () => Infinit
     ...quick.map((q) => h('button', { class: 'quick', type: 'button', onclick: () => { sound('click'); set(typeof q.value === 'function' ? q.value() : q.value); } }, q.label)),
   );
   return { el: wrap, get, set };
+}
+
+// ---------- Coins flying into (or out of) the top bar's Cash ----------
+let lastPointer = null;
+if (typeof window !== 'undefined') window.addEventListener('pointerdown', (e) => { lastPointer = { x: e.clientX, y: e.clientY, t: performance.now() }; }, true);
+export function coinBurst(amount, target) {
+  if (!amount || !target) return;
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tr = target.getBoundingClientRect(), tx = tr.left + tr.width / 2, ty = tr.top + tr.height / 2;
+  if (amount < 0) {
+    sound('spend');
+    moneyPop(amount, target);
+    if (reduced) return;
+    for (let i = 0; i < Math.min(6, 2 + Math.floor(Math.log2(-amount + 1) / 2)); i++) {
+      const c = h('div', { class: 'coin-fly' });
+      document.body.append(c);
+      const dx = (Math.random() - 0.5) * 60;
+      c.animate([{ transform: `translate(${tx - 9}px, ${ty - 9}px)`, opacity: 1 },
+        { transform: `translate(${tx - 9 + dx}px, ${ty + 50 + Math.random() * 40}px) rotate(${dx * 4}deg)`, opacity: 0 }],
+      { duration: 700 + Math.random() * 300, delay: i * 50, easing: 'cubic-bezier(.3,0,.8,1)', fill: 'both' }).onfinish = () => c.remove();
+    }
+    return;
+  }
+  const from = lastPointer && performance.now() - lastPointer.t < 3000 ? lastPointer : { x: innerWidth / 2, y: innerHeight / 2 };
+  if (reduced) { sound('tink'); return; }
+  const n = Math.max(3, Math.min(14, Math.round(Math.log2(amount + 1) * 2)));
+  for (let i = 0; i < n; i++) {
+    const c = h('div', { class: 'coin-fly' });
+    document.body.append(c);
+    const sx = from.x + (Math.random() - 0.5) * 40, sy = from.y + (Math.random() - 0.5) * 30;
+    const mx = (sx + tx) / 2 + (Math.random() - 0.5) * 80, my = Math.min(sy, ty) - 60 - Math.random() * 60;
+    const a = c.animate([
+      { transform: `translate(${sx - 9}px, ${sy - 9}px) scale(.6)`, opacity: 0 },
+      { transform: `translate(${mx - 9}px, ${my - 9}px) scale(1.1)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(${tx - 9}px, ${ty - 9}px) scale(.7)`, opacity: 1 }],
+    { duration: 650 + Math.random() * 200, delay: i * 45, easing: 'ease-in', fill: 'both' });
+    a.onfinish = () => { c.remove(); if (i % 2 === 0) sound('tink'); };
+  }
 }
 
 // ---------- Floating "+$84" pop near an element ----------

@@ -202,3 +202,16 @@ The user found the cave-in mineshaft confusing and rejected geodes as too much g
 - **Home** is now a full screen: upgrades (garden $60 → +$10/yr, solar $200 → +$30/yr, workshop $90 → +3 mine swings, tackle shed $90 → rod holds 5) plus the end-the-year panel. The garden and panels appear on the Home building in town.
 - **New award, Treat Yourself (Wisely):** bought a want, but spent no more than 10% of work earnings on wants. The end debrief shows wants spent vs. their Index value, and home-upgrade payback.
 - **Leader controls** (`leader.html`): pick the game, skip the tutorial, and copy a class link (`?game=N&class=KEY[&tutorial=off][&codes=off]`). Year codes are `yearCode(key, year)`, 3 letters with no look-alikes. In class mode the start screen locks the game, and Home asks for the year's code before sleeping. Everything works offline.
+
+## Update 2026-11-19: the town feels alive
+- **The town reacts to the news:** a new optional `town` field on each scenario year (`rain`, `heat`, `drought`, `snowstorm`, `boom`, `gloomy`, `festival`) follows the headline, never the outcome, so a bubble year looks like a party.
+  - Rain: slanted rain, puddles, ripples, cloud shadows, umbrellas.
+  - Heat: golden tint, shimmer, sun glow.
+  - Drought: dusty tint, a shrunken pond, cracked earth, dust.
+  - Snowstorm: heavy sideways snow with white-out gusts.
+  - Gloomy: washed-out color, cloud shadows, slower townsfolk, a SALE sign at the Shop.
+  - Boom: bunting along Main Street, balloons and a crowd at the Exchange, sparkles.
+  - Festival: bunting, balloons at every building, confetti, fireworks.
+  - With reduced motion, the static parts stay and moving particles are skipped.
+- **Money juice:** pixel coins fly from where you clicked into the top bar's Cash when you earn (it flashes green). Coins drop out with a "−$" pop when you spend (it flashes red). This hooks into `renderHud`, so it covers every source of money.
+- **Sounds:** each building plays its own entry sound (bank bell plus vault, trading-floor buzz, paper rustle, pour plus ice, mine echo, splash plus gull, shop chime, home chime), plus coin tinks and a cash-register sound.

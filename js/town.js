@@ -496,6 +496,7 @@ function drawPerson(c, px, py, dir, frame, shirt, hair = '#5A3A28', upperOnly = 
   if (dir === 'down' || dir === 'up') { R(c, x, y + 9, 2, 3, SKIN); R(c, x + 10, y + 9, 2, 3, SKIN); }
   else R(c, dir === 'left' ? x + 4 : x + 6, y + 9, 2, 3, SKIN);
   drawHat(c, x, y, dir, look.hat);
+  if (look.umbrella) drawUmbrella(c, x, y, look.umbrella);
   if (upperOnly) return;
   const step = frame ? 1 : 0;
   R(c, x + 2, y + 12, 8, 3, O);
@@ -520,6 +521,13 @@ function drawHat(c, x, y, dir, hat) {
     R(c, x + 1, y - 3, 10, 3, '#F2D45C'); R(c, x + 1, y - 5, 2, 2, '#F2D45C'); R(c, x + 5, y - 6, 2, 3, '#F2D45C'); R(c, x + 9, y - 5, 2, 2, '#F2D45C');
     R(c, x + 5, y - 2, 2, 1, '#C8503E'); R(c, x + 2, y - 2, 1, 1, '#3E7AB8'); R(c, x + 9, y - 2, 1, 1, '#3E7AB8'); R(c, x + 1, y - 3, 10, 1, '#FFF4B0');
   }
+}
+
+// A rainy-day umbrella over a person's head.
+function drawUmbrella(c, x, y, col) {
+  R(c, x + 9, y - 7, 1, 13, '#5A3A28');
+  R(c, x - 3, y - 7, 18, 3, col); R(c, x - 1, y - 9, 14, 2, col); R(c, x + 3, y - 10, 6, 1, col);
+  R(c, x - 3, y - 5, 18, 1, 'rgba(0,0,0,.25)'); R(c, x + 2, y - 9, 3, 1, 'rgba(255,255,255,.45)');
 }
 
 // Shop rides, drawn under a person's feet (px, py = feet).
@@ -631,7 +639,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
         f.i = f.pts.length === 2 ? f.i + f.dir : (f.i + 1) % f.pts.length;
         continue;
       }
-      const s = Math.min(d, f.speed * dt);
+      const s = Math.min(d, f.speed * dt * (world.mood === 'gloomy' ? 0.6 : 1));
       f.x += (ex / d) * s; f.y += (ey / d) * s; f.moving = true; f.anim += dt * 6;
       f.face = Math.abs(ex) > Math.abs(ey) ? (ex < 0 ? 'left' : 'right') : (ey < 0 ? 'up' : 'down');
     }
@@ -649,7 +657,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     if (!birds && birdTimer <= 0) birds = { x: -OX - 20, y: 20 + Math.random() * 120, t: 0 };
     if (birds) { birds.t += dt; birds.x += 70 * dt; birds.y += 12 * dt; if (birds.x > W + OX + 30) { birds = null; birdTimer = 10 + Math.random() * 10; } }
     // seasonal weather particles
-    const want = { spring: 14, summer: 0, fall: 22, winter: 60 }[world.season];
+    const want = ['rain', 'heat', 'drought'].includes(world.mood) ? 0 : { spring: 14, summer: 0, fall: 22, winter: 60 }[world.season];
     while (weather.length < want * 4) weather.push({ x: Math.random() * BW - OX, y: Math.random() * BH - OY, t: Math.random() * 6 });
     weather.length = Math.min(weather.length, want * 4);
     for (const p of weather) {
@@ -688,6 +696,155 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     if (!path && building) enter(building);
   }
 
+
+  // ---------- the town reacts to this year's news (world.mood) ----------
+  const UMBRELLAS = ['#D0584A', '#3E7AB8', '#F2D45C', '#4F9A5A', '#8C6BB1', '#E8607A'];
+  const moodParts = [], ripples = [], bursts = [];
+  let gust = 0, gustTimer = 6, burstTimer = 1;
+  const view = () => ({ x0: -offX / S, y0: -offY / S, x1: (canvas.width - offX) / S, y1: (canvas.height - offY) / S });
+  const rnd2 = (a, b) => a + Math.random() * (b - a);
+  // fixed spots for puddles and cracked earth (same every time)
+  const PUDDLES = [[3, 8.4], [9, 9.3], [13, 8.6], [19, 9.4], [24, 8.5], [29, 9.2], [15.3, 12], [16.2, 14.5], [8, 16.4], [22, 16.3]];
+  const CRACKS = [[1, 7.2], [9, 10.6], [13.5, 10.8], [23.5, 13.6], [2, 13], [25, 10.6], [30, 14], [11.5, 16]];
+  function stepMood(dt) {
+    const m = world.mood;
+    if (!m || REDUCED) { moodParts.length = 0; bursts.length = 0; return; }
+    const v = view(), w = v.x1 - v.x0, h = v.y1 - v.y0;
+    const want = { rain: 160, snowstorm: 150, festival: 70, drought: 18, boom: 12 }[m] || 0;
+    while (moodParts.length < want) moodParts.push({ x: rnd2(v.x0, v.x1), y: rnd2(v.y0, v.y1), t: rnd2(0, 6), c: UMBRELLAS[(Math.random() * 6) | 0] });
+    moodParts.length = Math.min(moodParts.length, want);
+    for (const p of moodParts) {
+      p.t += dt;
+      if (m === 'rain') { p.x -= 40 * dt; p.y += 230 * dt; }
+      else if (m === 'snowstorm') { p.x += (60 + Math.sin(p.t * 2) * 20 + gust * 120) * dt; p.y += 40 * dt; }
+      else if (m === 'festival') { p.x += Math.sin(p.t * 2.5) * 14 * dt; p.y += 18 * dt; }
+      else if (m === 'drought') { p.x += Math.cos(p.t * 3) * 22 * dt + 8 * dt; p.y += Math.sin(p.t * 3) * 10 * dt; }
+      else if (m === 'boom') { p.y -= 6 * dt; }
+      if (p.y > v.y1 + 4) { p.y = v.y0 - 4; p.x = rnd2(v.x0, v.x1); }
+      if (p.y < v.y0 - 6) { p.y = v.y1; p.x = rnd2(v.x0, v.x1); }
+      if (p.x > v.x1 + 4) p.x = v.x0 - 4; if (p.x < v.x0 - 4) p.x = v.x1 + 4;
+      if (m === 'drought' && p.t > 6) { p.t = 0; p.x = rnd2(v.x0, v.x1); p.y = rnd2(v.y0, v.y1); }
+      if (m === 'boom' && p.t > 2.5) { p.t = 0; p.x = rnd2(v.x0, v.x1); p.y = rnd2(v.y0, v.y1); }
+    }
+    if (m === 'rain' && Math.random() < dt * 14) { // raindrops landing on the pond and the river
+      const inPond = Math.random() < 0.35;
+      ripples.push(inPond ? { x: POND[0] * T + rnd2(6, 42), y: POND[1] * T + rnd2(6, 42), t: 0 }
+        : { x: rnd2(Math.max(v.x0, -OX), Math.min(v.x1, W + OX)), y: CREEK_Y * T + rnd2(5, CREEK_H * T - 4), t: 0 });
+    }
+    for (const r of ripples) r.t += dt;
+    while (ripples.length && ripples[0].t > 0.8) ripples.shift();
+    if (m === 'snowstorm') { gustTimer -= dt; if (gustTimer <= 0) { gustTimer = rnd2(5, 9); gust = 1; } gust = Math.max(0, gust - dt * 0.9); }
+    if (m === 'festival') {
+      burstTimer -= dt;
+      if (burstTimer <= 0) {
+        burstTimer = rnd2(0.7, 1.6);
+        const x = rnd2(v.x0 + 20, v.x1 - 20), y = rnd2(v.y0 + 10, v.y0 + Math.min(60, h * 0.25)), c = UMBRELLAS[(Math.random() * 6) | 0];
+        bursts.push({ x, y, t: 0, c });
+      }
+      for (const b of bursts) b.t += dt;
+      while (bursts.length && bursts[0].t > 1.4) bursts.shift();
+    }
+    void w;
+  }
+  // under the people: puddles, ripples, a dried-up pond, cracked ground
+  function drawMoodGround(sec) {
+    const m = world.mood;
+    if (m === 'rain') {
+      for (const [px, py] of PUDDLES) { const x = px * T, y = py * T; R(lg, x, y, 10, 3, 'rgba(126,176,214,.55)'); R(lg, x + 2, y - 1, 6, 1, 'rgba(126,176,214,.45)'); R(lg, x + 2, y + 1, 3, 1, 'rgba(255,255,255,.6)'); }
+      for (const r of ripples) { const k = 1 + Math.floor(r.t * 6); lg.fillStyle = `rgba(220,236,248,${0.7 - r.t * 0.8})`; lg.fillRect(r.x - k, r.y, k * 2, 1); lg.fillRect(r.x - k + 1, r.y - 1, k * 2 - 2, 1); }
+    } else if (m === 'drought') {
+      const [px, py, pw, ph] = POND.map((q) => q * T);
+      lg.fillStyle = '#C9B48A'; lg.fillRect(px, py + 2, pw, 7); lg.fillRect(px, py + ph - 9, pw, 7); lg.fillRect(px, py, 9, ph); lg.fillRect(px + pw - 9, py, 9, ph);
+      lg.fillStyle = '#A8925E'; for (let i = 0; i < 6; i++) lg.fillRect(px + 3 + i * 7, py + 4 + (i % 2) * 2, 4, 1);
+      for (const [cx, cy] of CRACKS) {
+        const x = cx * T, y = cy * T;
+        R(lg, x, y, 14, 9, 'rgba(176,150,96,.55)');
+        lg.fillStyle = 'rgba(90,70,40,.6)';
+        lg.fillRect(x + 2, y + 2, 5, 1); lg.fillRect(x + 6, y + 2, 1, 4); lg.fillRect(x + 6, y + 5, 6, 1); lg.fillRect(x + 3, y + 5, 1, 3); lg.fillRect(x + 10, y + 1, 1, 4);
+      }
+    }
+    void sec;
+  }
+  // bunting strung between the street lamps on Main Street
+  function drawBunting(sec, colors) {
+    const lamps = LAMPS.map(([x, y]) => [x * T + 8, y * T - 16]).sort((a, b) => a[0] - b[0]);
+    for (let i = 0; i < lamps.length - 1; i++) {
+      const [x0, y0] = lamps[i], [x1] = lamps[i + 1];
+      for (let x = x0; x < x1; x += 2) {
+        const f = (x - x0) / (x1 - x0), y = Math.round(y0 + Math.sin(f * Math.PI) * 7 + (REDUCED ? 0 : Math.sin(sec * 2 + x * 0.05) * 0.6));
+        R(lg, x, y, 2, 1, '#5E6A78');
+        if ((x - x0) % 8 === 0) { const c = colors[((x / 8) | 0) % colors.length]; R(lg, x, y + 1, 5, 2, c); R(lg, x + 1, y + 3, 3, 1, c); R(lg, x + 2, y + 4, 1, 1, c); }
+      }
+    }
+  }
+  function drawBalloons(x, y, sec, n = 3, seed0 = 0) {
+    for (let i = 0; i < n; i++) {
+      const bob = REDUCED ? 0 : Math.round(Math.sin(sec * 1.6 + i + seed0) * 1.5);
+      const bx = x + (i - (n - 1) / 2) * 6, by = y - 18 - (i % 2) * 4 + bob, c = UMBRELLAS[(i + seed0) % UMBRELLAS.length];
+      lg.fillStyle = 'rgba(60,60,60,.6)'; lg.fillRect(Math.round(bx + 2), by + 6, 1, y - by - 6);
+      R(lg, bx, by + 1, 5, 4, c); R(lg, bx + 1, by, 3, 6, c); R(lg, bx + 1, by + 1, 1, 1, 'rgba(255,255,255,.7)');
+    }
+  }
+  // a soft round shape made of pixel rows (clouds, sun glow)
+  function pixelBlob(cx, cy, rx, ry, col) {
+    lg.fillStyle = col;
+    for (let dy = -ry; dy <= ry; dy += 2) { const hw = Math.round(rx * Math.sqrt(1 - (dy / ry) ** 2)); lg.fillRect(Math.round(cx - hw), Math.round(cy + dy), hw * 2, 2); }
+  }
+  // above the people: decorations, falling things, light and tint
+  function drawMoodSky(sec) {
+    const m = world.mood;
+    if (!m) return;
+    const v = view(), vw = v.x1 - v.x0, vh = v.y1 - v.y0;
+    const ex = BUILDINGS.find((b) => b.id === 'exchange');
+    if (m === 'boom' || m === 'festival') {
+      drawBunting(sec, m === 'boom' ? ['#2F6B4F', '#F2D45C', '#FFFFFF'] : UMBRELLAS);
+      drawBalloons(ex.x * T + 10, (ex.y + ex.h) * T - 2, sec, 3, 1);
+      drawBalloons(ex.x * T + ex.w * T - 10, (ex.y + ex.h) * T - 2, sec, 3, 4);
+      if (m === 'festival') for (const id of ['bank', 'home', 'shop', 'news', 'lemonade', 'mine']) {
+        const b = BUILDINGS.find((q) => q.id === id);
+        drawBalloons(b.x * T + 4, (b.y + b.h) * T - 2, sec, 2, id.length);
+      }
+    }
+    for (const p of moodParts) {
+      const x = Math.round(p.x), y = Math.round(p.y);
+      if (m === 'rain') { lg.fillStyle = 'rgba(200,220,240,.65)'; lg.fillRect(x, y, 1, 3); lg.fillRect(x - 1, y + 3, 1, 2); }
+      else if (m === 'snowstorm') R(lg, x, y, (p.t % 2) < 1 ? 2 : 1, (p.t % 2) < 1 ? 2 : 1, '#FFFFFF');
+      else if (m === 'festival') R(lg, x, y, 2, 1 + (Math.floor(p.t * 4) % 2), p.c);
+      else if (m === 'drought') { lg.fillStyle = `rgba(190,160,110,${0.5 - Math.abs(p.t - 3) / 7})`; lg.fillRect(x, y, 2, 2); lg.fillRect(x + 3, y - 1, 1, 1); }
+      else if (m === 'boom') { const k = p.t < 1.25 ? p.t : 2.5 - p.t; if (k > 0.3) { R(lg, x - 1, y, 3, 1, '#FFF4B0'); R(lg, x, y - 1, 1, 3, '#FFF4B0'); } }
+    }
+    for (const b of bursts) {
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2, r = b.t * 26;
+        lg.fillStyle = b.c; lg.globalAlpha = Math.max(0, 1 - b.t / 1.4);
+        lg.fillRect(Math.round(b.x + Math.cos(a) * r), Math.round(b.y + Math.sin(a) * r + b.t * b.t * 6), 2, 2);
+      }
+      lg.globalAlpha = 1;
+    }
+    // drifting cloud shadows on rainy and gloomy days
+    if (m === 'rain' || m === 'gloomy') for (let i = 0; i < 4; i++) {
+      const cx = v.x0 + ((REDUCED ? i * 140 : sec * 7 + i * 170) % (vw + 160)) - 80, cy = v.y0 + vh * (0.15 + i * 0.22);
+      pixelBlob(cx, cy, 46, 16, 'rgba(20,30,45,.09)'); pixelBlob(cx + 26, cy - 8, 26, 12, 'rgba(20,30,45,.09)');
+    }
+    // heat shimmer over the streets and a bright sun in the corner
+    if (m === 'heat') {
+      if (!REDUCED) for (let i = 0; i < 10; i++) {
+        const y = 8 * T + ((sec * 12 + i * 3.3) % (2 * T)), x = v.x0 + ((i * 97 + sec * 20) % vw);
+        lg.fillStyle = 'rgba(255,250,230,.22)'; lg.fillRect(Math.round(x), Math.round(y), 22, 1); lg.fillRect(Math.round(x + 3), Math.round(y + 1), 14, 1);
+      }
+      const sx = v.x1 - 16, sy = v.y0 + 16;
+      for (const [r, a] of [[52, 0.07], [36, 0.1], [22, 0.16], [11, 0.6]]) pixelBlob(sx, sy, r, r, `rgba(255,236,170,${a})`);
+    }
+    // color of the light
+    const tint = { rain: 'rgba(60,82,112,.20)', heat: 'rgba(255,184,80,.13)', drought: 'rgba(176,130,70,.20)', snowstorm: 'rgba(225,236,248,.12)', gloomy: 'rgba(60,66,78,.18)' }[m];
+    if (m === 'gloomy') { // wash the color out
+      lg.globalCompositeOperation = 'saturation'; lg.fillStyle = 'rgba(128,128,128,.55)'; lg.fillRect(v.x0, v.y0, vw, vh);
+      lg.globalCompositeOperation = 'source-over';
+    }
+    if (tint) { lg.fillStyle = tint; lg.fillRect(v.x0, v.y0, vw, vh); }
+    if (m === 'snowstorm' && gust > 0) { lg.fillStyle = `rgba(255,255,255,${gust * 0.4})`; lg.fillRect(v.x0, v.y0, vw, vh); }
+  }
+
   function draw(t) {
     const sec = t / 1000;
     lg.setTransform(1, 0, 0, 1, OX, OY);
@@ -701,6 +858,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
         R(lg, x + 1, y + 6, 7, 1, '#7FB0D6');
       }
     }
+    drawMoodGround(sec);
     // lamp glow
     const glow = 0.18 + Math.sin(sec * 2) * 0.05;
     for (const [lx, ly] of LAMPS) { lg.fillStyle = `rgba(248,224,138,${glow})`; lg.fillRect(lx * T + 2, ly * T - 21, 12, 12); }
@@ -734,11 +892,19 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     }
     // depth-sort trees, people and the player by their bottom edge
     const items = TREES.map(([x, y]) => ({ y: y * T + 15, fn: () => drawTree(lg, x, y, world.season) }));
-    items.push({ y: me.y, fn: () => drawPerson(lg, me.x, me.y, me.dir, me.moving && !world.ride ? Math.floor(me.anim) % 2 : 0, color, undefined, false, { hat: world.hat, ride: world.ride }) });
-    for (const f of folk) items.push({ y: f.y, fn: () => drawPerson(lg, f.x, f.y, f.face, f.moving ? Math.floor(f.anim) % 2 : 0, f.shirt, f.hair) });
+    const rainy = world.mood === 'rain';
+    items.push({ y: me.y, fn: () => drawPerson(lg, me.x, me.y, me.dir, me.moving && !world.ride ? Math.floor(me.anim) % 2 : 0, color, undefined, false, { hat: world.hat, ride: world.ride, umbrella: rainy && UMBRELLAS[1] }) });
+    folk.forEach((f, i) => items.push({ y: f.y, fn: () => drawPerson(lg, f.x, f.y, f.face, f.moving ? Math.floor(f.anim) % 2 : 0, f.shirt, f.hair, false, { umbrella: rainy && UMBRELLAS[(i + 2) % 6] }) }));
+    if (world.mood === 'boom') { // everyone wants in on the stock market
+      const ex = BUILDINGS.find((b) => b.id === 'exchange');
+      [[ex.door + 1, 0], [ex.door + 2, 1], [ex.door - 1, 2], [ex.door + 3, 3]].forEach(([qx, k]) => {
+        const bob = !REDUCED && Math.floor(sec * 2 + k) % 3 === 0 ? 1 : 0;
+        items.push({ y: 7 * T + 12, fn: () => drawPerson(lg, qx * T + 8, 7 * T + 12 - bob, 'up', 0, QUEUE_LOOK[k][0], QUEUE_LOOK[k][1]) });
+      });
+    }
     if (!world.shiftDone) QUEUE_SPOTS.forEach(([qx, qy], i) => {
       const bob = !REDUCED && Math.floor(sec * 2 + i) % 4 === 0 ? 1 : 0;
-      items.push({ y: qy * T + 12, fn: () => drawPerson(lg, qx * T + 8, qy * T + 12 - bob, 'left', 0, QUEUE_LOOK[i][0], QUEUE_LOOK[i][1]) });
+      items.push({ y: qy * T + 12, fn: () => drawPerson(lg, qx * T + 8, qy * T + 12 - bob, 'left', 0, QUEUE_LOOK[i][0], QUEUE_LOOK[i][1], false, { umbrella: rainy && UMBRELLAS[(i + 3) % 6] }) });
     });
     items.sort((a, b) => a.y - b.y).forEach((it) => it.fn());
     // smoke, butterflies, birds, weather
@@ -757,6 +923,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
       else if (world.season === 'fall') R(lg, x, y, 2, 1 + (Math.floor(p.t * 3) % 2), ['#D9832E', '#B85A2A', '#E8B04A'][Math.floor(p.x) % 3]);
       else R(lg, x, y, 1, 1, SEASONS.spring.blossom);
     }
+    drawMoodSky(sec);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.imageSmoothingEnabled = false;
     g.fillStyle = SEASONS[world.season].grass[0]; g.fillRect(0, 0, canvas.width, canvas.height);
@@ -820,6 +987,11 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
         g.fillStyle = '#FFFFFF'; g.fillRect(bx, by + 3.5 * S, 6 * S, 3.5 * S);
         g.fillStyle = OUTLINE; g.fillRect(bx + 2.5 * S, by - 3 * S, S, 2 * S);
       }
+      if (b.id === 'shop' && world.mood === 'gloomy') { // prices slashed in a slump
+        const sx = (b.x * T + 3) * S, sy = ((b.y + b.h) * T - 15) * S, sw = 16 * S, sh = 7 * S;
+        g.fillStyle = OUTLINE; g.fillRect(sx - S, sy - S, sw + 2 * S, sh + 2 * S); g.fillStyle = '#D0584A'; g.fillRect(sx, sy, sw, sh);
+        g.save(); g.font = `${6.5 * S}px "Jersey 10", monospace`; g.fillStyle = '#FFFFFF'; g.fillText('SALE', sx + sw / 2, sy + sh / 2 + 0.3 * S); g.restore();
+      }
       if (b.id === 'bank' && world.savings && !REDUCED) { // twinkling sparkles: your savings are growing
         for (let i = 0; i < 3; i++) {
           const ph = (sec * 1.3 + i * 0.33) % 1;
@@ -846,6 +1018,7 @@ export function createTown(canvas, { color = '#3E7AB8', onEnter = () => {} } = {
     last = t;
     if (!paused) step(dt);
     stepLife(dt);
+    stepMood(dt);
     draw(t);
     requestAnimationFrame(loop);
   }
