@@ -1,7 +1,7 @@
 // Sprout City: wires the town, the top bar, and the building screens together.
 import * as E from './engine.js';
 import { SETTINGS, STOCKS } from './scenarios.js';
-import { h, money, sound, toast, isMuted, setMuted, countBetween, isMusicOn, setMusic } from './ui.js';
+import { h, money, sound, toast, isMuted, setMuted, countBetween, isMusicOn, setMusic, coinBurst } from './ui.js';
 import { createTown } from './town.js';
 import { showStart } from './screens/start.js';
 import { bankScreen } from './screens/bank.js';
@@ -99,7 +99,7 @@ export const app = {
       return { t: st.ticker, p: money(p), c: i === 0 ? 'NEW' : c === 0 ? '0%' : `${c > 0 ? '▲' : '▼'}${Math.abs(c)}%`, up: i > 0 && c > 0, down: c < 0 };
     });
     const biz = E.ensureBiz(s);
-    this.town.setWorld({ name: s.nickname, season, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
+    this.town.setWorld({ name: s.nickname, season, mood: s.finished ? null : ev.town || null, tip: !!ev.tip, shiftDone: E.shiftDone(s) || s.finished, helper: !!biz.owned.helper,
       recipe: !!biz.owned.recipe, bigStand: !!biz.owned.stand, savings: s.savings > 0, ticker, casts: s.finished ? 0 : E.castsLeft(s),
       hat: E.ensureExtras(s).wants.hat, ride: s.wants.ride, speed: E.rideSpeed(s), garden: E.ownsUpgrade(s, 'garden'), solar: E.ownsUpgrade(s, 'solar') });
   },
@@ -140,6 +140,13 @@ export const app = {
         isMusicOn() ? 'Music: on' : 'Music: off')].filter(Boolean));
     // numbers roll to their new value instead of jumping
     const prev = this._shown || { cash: s.cash, worth };
+    const diff = Math.round((s.cash - prev.cash) * 100) / 100;
+    if (this._shown && diff) { // coins fly in when you earn, drop out when you spend
+      const cashEl = document.getElementById('hud-cash');
+      coinBurst(diff, cashEl);
+      const box = cashEl.closest('.stat') || cashEl;
+      box.classList.add(diff > 0 ? 'flash-up' : 'flash-down');
+    }
     countBetween(document.getElementById('hud-cash'), prev.cash, s.cash);
     countBetween(document.getElementById('hud-worth'), Math.round(prev.worth), Math.round(worth), 600, (v) => money(Math.round(v)));
     this._shown = { cash: s.cash, worth };
@@ -148,7 +155,7 @@ export const app = {
 
   enter(id) {
     if (!this.state || this.state.finished) return;
-    sound('door');
+    sound(['bank', 'exchange', 'news', 'lemonade', 'mine', 'dock', 'shop', 'home'].includes(id) ? id : 'door');
     if (id === 'bank') bankScreen(this);
     else if (id === 'exchange') exchangeScreen(this);
     else if (id === 'news') newsScreen(this);

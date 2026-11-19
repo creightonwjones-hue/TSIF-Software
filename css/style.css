@@ -421,3 +421,11 @@ body.leader-page { display: block; overflow: auto; background: #E8F1E0; }
 .code-list li { display: flex; justify-content: space-between; max-width: 220px; border-bottom: 2px solid var(--line); }
 .code-list b { letter-spacing: .15em; }
 @media print { .leader-page .btn, .leader-link-row, .leader-check, .year-code-show { display: none; } body.leader-page { background: #fff; } }
+
+/* ---------- Money juice: coins flying to / from Cash ---------- */
+.coin-fly { position: fixed; left: 0; top: 0; width: 18px; height: 18px; z-index: 70; pointer-events: none;
+  background: #F2D45C; border: 2px solid #8C6A1E; box-shadow: inset -3px -3px 0 #D9A92E, inset 2px 2px 0 #FFF4B0; }
+#hud .stat.flash-up { animation: cash-up .7s steps(4); }
+#hud .stat.flash-down { animation: cash-down .7s steps(4); }
+@keyframes cash-up { 0%, 60% { background: #CFEFC4; box-shadow: 0 0 0 3px #CFEFC4; } 100% { background: transparent; box-shadow: none; } }
+@keyframes cash-down { 0%, 60% { background: #F6CFC8; box-shadow: 0 0 0 3px #F6CFC8; } 100% { background: transparent; box-shadow: none; } }

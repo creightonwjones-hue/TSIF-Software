@@ -30,7 +30,7 @@ At the end, kids see their **final score** (net worth: show it to the club leade
 - No accounts, no data sent anywhere. Kids should use a nickname, not their full name.
 
 ### Editing the game (club members)
-Everything you'd want to change — company names, news headlines, how much the news moves prices, the lemonade stand's prices and upgrades, life events, and what ore and fish are worth — is in **`js/scenarios.js`**, with comments explaining each part. The fishing questions are in **`js/questions.js`** (6 levels of difficulty; add your own!).
+Everything you'd want to change — company names, news headlines, how the town looks each year (`town`: rain, heat, drought, snowstorm, boom, gloomy or festival), how much the news moves prices, the lemonade stand's prices and upgrades, life events, and what ore and fish are worth — is in **`js/scenarios.js`**, with comments explaining each part. The fishing questions are in **`js/questions.js`** (6 levels of difficulty; add your own!).
 
 After editing, run the tests to make sure smart play (spreading money out and staying calm in a crash) still beats gambling, and that the lemonade stand helps without making investing pointless:
 
